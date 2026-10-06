@@ -52,8 +52,11 @@ en npm es `12.19.0`, ver §7).
   (+) va en el botón circular a su derecha. Cada script monta lo suyo en su ranura
   (`data-ranura="pestanas|ayuda|estado|cuenta|principal"`) y la vacía al cambiar de
   pantalla o de sesión. No crear FABs ni barras fijas nuevas fuera de ella. En `lista.html`
-  NO hay "+" aparte (4 pestañas + 3 controles no caben con él en 375 px): agregar es el "+"
-  del campo rápido (vacío = formulario completo).
+  las pestañas de la barra son las **dos vistas** ("Por comprar" con su contador / "Toda la
+  lista"; las monta `montarVistaArticulos`), pedido del usuario. Favoritos/Plantillas/Miembros
+  **salieron de la barra** mientras no existan: con ellos son 8 controles ≈ 372 px y no caben
+  con objetivos de 44 px. Al construir la Fase 3/4, decidir con el usuario dónde van (p. ej.
+  un control "Más"). Tampoco hay "+" aparte: agregar es el "+" del campo rápido.
 - **Un solo toast a la vez** (`mostrarToast` reemplaza el anterior). Los toasts van
   **debajo** de los modales (z-index 90 < 100) y encima de la barra (40).
 - **Colores solo por tokens**: todo hex vive en `:root` o `:root[data-modo="oscuro"]` de
@@ -114,6 +117,10 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
   marca ni desmarca. Paso: 1 (piezas, paquetes…), 0.5 (kg, l), 100 (g, ml); nunca baja de un
   paso (las reglas exigen > 0; quitar = "Eliminar"). Unidad explícita: solo "pieza" se abrevia
   (pza/pzas). En esa vista el subtotal baja al renglón de detalle para que quepa en 320 px.
+- **Índice de pasillos fijo arriba** (`.indice-pasillos`, sticky, `--alto-indice` 60 px): primer
+  elemento del cuerpo de la lista; los títulos de pasillo se pegan justo debajo; el chip del
+  pasillo que va arriba se resalta al hacer scroll (`marcarPasilloActual`). Al buscar, el
+  índice se vacía y los títulos vuelven a pegarse hasta arriba (`:has(.indice-pasillos:empty)`).
 - **Orden dentro de cada pasillo: alfabético** (`Intl.Collator("es")`: sin acentos ni
   mayúsculas, ñ tras n, números por valor; desempate por llave). Pedido del usuario.
 - **Editor rápido de unidades y precios** ("Unidades y precios" en "Toda la lista"): por

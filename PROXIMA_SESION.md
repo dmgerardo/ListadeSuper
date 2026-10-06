@@ -6,7 +6,11 @@
 > de verdad técnica (esa es `AGENTS.md`), pero sigue teniendo el detalle completo de cada
 > fase y el modelo de datos.
 
-## Estado actual: v14 en `main` (2026-10-06)
+## Estado actual: v15 en `main` (2026-10-06)
+
+- v15: "Por comprar"/"Toda la lista" pasaron a la barra inferior (reemplazan la pestaña
+  "Lista"); Favoritos/Plantillas/Miembros salieron de la barra hasta que existan (no cabían).
+  Índice de pasillos arriba y fijo, con el pasillo actual resaltado. Ver `AGENTS.md` §2 y §3b.
 
 - v13: selector de apariencia Sistema/Claro/Oscuro en la hoja "Mi cuenta".
 - v14: orden alfabético dentro de cada pasillo y editor rápido de unidades y precios

@@ -56,6 +56,7 @@
   --fuente-titulos: "Bricolage Grotesque", "Figtree", system-ui, sans-serif;
   --fuente-texto: "Figtree", system-ui, sans-serif;
   --alto-barra: 60px;
+  --alto-indice: 60px;   /* fila fija de chips de pasillo (44 px + 8 + 8) */
 }
 
 :root[data-modo="oscuro"] {
@@ -282,6 +283,15 @@ select:focus-visible, textarea:focus-visible {
   padding: 0 12px;
 }
 .item-barra[aria-disabled="true"] { opacity: 0.45; cursor: default; }
+.pestanas-vista { display: flex; align-items: center; gap: 2px; }
+.item-barra:not(.activo) .etiqueta-barra { display: none; }
+.contador-barra {
+  min-width: 20px;
+  padding: 0 6px;
+  line-height: 20px;
+  background: var(--color-primario);
+  color: var(--color-texto-sobre-primario);
+}
 .item-estado { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .punto-estado {
   width: 8px;
@@ -595,13 +605,18 @@ select:focus-visible, textarea:focus-visible {
 .btn-agregar-rapido:hover { background: var(--color-primario-oscuro); }
 :root[data-modo="oscuro"] .btn-agregar-rapido:hover { background: var(--color-primario); filter: brightness(1.08); }
 
-/* Índice de pasillos: chips con scroll horizontal propio. El margen negativo lo lleva al
-   borde del .contenedor sin pasarse (no genera scroll horizontal de página). */
+/* Índice de pasillos: arriba y FIJO al hacer scroll (sticky), con scroll horizontal propio.
+   El margen negativo lo lleva al borde del .contenedor sin pasarse (no genera scroll
+   horizontal de página). Los títulos de pasillo se pegan justo debajo de él. */
 .indice-pasillos {
+  position: sticky;
+  top: 0;
+  z-index: 6;
   display: flex;
   gap: 8px;
-  margin: var(--espacio) calc(-1 * var(--espacio)) 0;
-  padding: 2px var(--espacio) 6px;
+  margin: 0 calc(-1 * var(--espacio)) var(--espacio);
+  padding: calc(8px + env(safe-area-inset-top)) var(--espacio) 8px;
+  background: var(--color-fondo);
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
@@ -624,6 +639,7 @@ select:focus-visible, textarea:focus-visible {
   text-decoration: none;
   white-space: nowrap;
 }
+.chip-pasillo.activo { box-shadow: inset 0 0 0 2px var(--color-primario); }
 .chip-numero {
   min-width: 30px;
   height: 30px;
@@ -645,16 +661,16 @@ select:focus-visible, textarea:focus-visible {
 
 .grupo-pasillo {
   margin-bottom: var(--espacio);
-  scroll-margin-top: calc(8px + env(safe-area-inset-top));
+  scroll-margin-top: calc(var(--alto-indice) + env(safe-area-inset-top));
 }
 /* El nombre del pasillo se queda fijo arriba al hacer scroll: con ~170 artículos es la
    referencia de "en qué pasillo voy". */
 .titulo-pasillo {
   position: sticky;
-  top: 0;
+  top: calc(var(--alto-indice) + env(safe-area-inset-top));
   z-index: 5;
   margin: 0;
-  padding: calc(10px + env(safe-area-inset-top)) 4px 8px;
+  padding: 8px 4px;
   background: var(--color-fondo);
   font-size: 18px;
   font-weight: 700;
@@ -872,6 +888,10 @@ select:focus-visible, textarea:focus-visible {
 .vista-previa-importar p { margin: 0 0 6px; }
 .resumen-importar { margin: 0 0 6px; padding-left: 20px; columns: 2; font-size: 14px; }
 code { font-size: 0.9em; background: var(--color-segmento); padding: 0 4px; border-radius: 4px; }
+
+/* Sin índice (al buscar, o lista vacía) los títulos se pegan hasta arriba. */
+.contenedor:has(.indice-pasillos:empty) .titulo-pasillo { top: env(safe-area-inset-top); padding-top: 10px; }
+.contenedor:has(.indice-pasillos:empty) .grupo-pasillo { scroll-margin-top: env(safe-area-inset-top); }
 
 /* ===== Utilidades ===== */
 .texto-suave { color: var(--color-texto-suave); }

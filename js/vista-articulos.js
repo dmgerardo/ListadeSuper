@@ -65,18 +65,16 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     '<p class="texto-suave oculto" data-sin-acceso>No existe, o tu cuenta no es miembro de ella. ' +
     "Si te la compartieron, pide una invitación nueva.</p>" +
     '<div data-cuerpo class="oculto">' +
+    // Índice de pasillos arriba y fijo (sticky) al hacer scroll: pedido del usuario, para
+    // navegar una lista de ~170 artículos sin regresar hasta arriba.
+    '<nav class="indice-pasillos" data-indice aria-label="Ir a un pasillo"></nav>' +
     '<section class="tarjeta-resumen" data-resumen aria-live="polite" aria-label="Resumen de la lista"></section>' +
-    '<div class="selector-vista" role="tablist" aria-label="Qué artículos ver">' +
-    '<button type="button" role="tab" data-vista="pendientes">Por comprar <span class="contador" data-contador-pendientes></span></button>' +
-    '<button type="button" role="tab" data-vista="todo">Toda la lista</button>' +
-    "</div>" +
     '<form class="campo-rapido" data-form-rapido autocomplete="off">' +
     icono("search", 20) +
     '<input type="text" data-campo-rapido maxlength="130" enterkeyhint="done" ' +
     'placeholder="Busca o agrega: 2 kg tomate" aria-label="Buscar o agregar artículo">' +
     '<button type="submit" class="btn-agregar-rapido" aria-label="Agregar artículo" title="Agregar artículo">' + icono("plus", 22) + "</button>" +
     "</form>" +
-    '<nav class="indice-pasillos" data-indice aria-label="Ir a un pasillo"></nav>' +
     '<div class="acciones-lista" data-acciones></div>' +
     '<div data-articulos></div>' +
     "</div>" +
@@ -88,12 +86,25 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
   var resumenEl = contenedor.querySelector("[data-resumen]");
   var indiceEl = contenedor.querySelector("[data-indice]");
   var ultimoResumen = ""; // aria-live: solo se reescribe si cambió, para no repetir el anuncio
-  var contadorEl = contenedor.querySelector("[data-contador-pendientes]");
+  // Selector de vista en la barra inferior (pedido del usuario): reemplaza la pestaña "Lista".
+  // Favoritos/Plantillas/Miembros salieron de la barra mientras no existan: con ellos no
+  // caben las dos vistas con objetivos táctiles de 44 px (8 controles ≈ 372 px > 366 px).
+  montarPestanas(
+    '<div class="pestanas-vista" role="tablist" aria-label="Qué artículos ver">' +
+      '<button type="button" role="tab" class="item-barra" data-vista="pendientes" title="Por comprar">' +
+      icono("shopping-cart", 22) + '<span class="etiqueta-barra">Por comprar</span>' +
+      '<span class="contador contador-barra" data-contador-pendientes></span></button>' +
+      '<button type="button" role="tab" class="item-barra" data-vista="todo" title="Toda la lista">' +
+      icono("list", 22) + '<span class="etiqueta-barra">Toda la lista</span></button>' +
+      "</div>"
+  );
+  var ranuraPestanas = ranuraBarra("pestanas");
+  var contadorEl = ranuraPestanas.querySelector("[data-contador-pendientes]");
   var zonaAcciones = contenedor.querySelector("[data-acciones]");
   var zonaArticulos = contenedor.querySelector("[data-articulos]");
   var formRapido = contenedor.querySelector("[data-form-rapido]");
   var campoRapido = contenedor.querySelector("[data-campo-rapido]");
-  var pestanasVista = contenedor.querySelectorAll("[data-vista]");
+  var pestanasVista = ranuraPestanas.querySelectorAll("[data-vista]");
 
   // ===== Pintado =====
 
@@ -207,6 +218,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         );
       })
       .join("");
+    requestAnimationFrame(marcarPasilloActual);
   }
 
   function pintarResumen(t) {
@@ -248,7 +260,10 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       pestanasVista.forEach(function (b) {
         var activa = b.dataset.vista === vista;
         b.setAttribute("aria-selected", activa ? "true" : "false");
-        b.classList.toggle("activa", activa);
+        b.classList.toggle("activo", activa);
+        // Nombre accesible con el número: la etiqueta visible se oculta en la pestaña inactiva.
+        b.setAttribute("aria-label", b.dataset.vista === "pendientes"
+          ? "Por comprar (" + t.pendientes + ")" : "Toda la lista (" + (t.pendientes + t.marcados) + ")");
       });
 
       if (modoPrecios && t.pendientes + t.marcados > 0) {
@@ -788,11 +803,44 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     pintar();
   }
 
-  pestanasVista.forEach(function (b) {
-    b.addEventListener("click", function () {
-      cambiarVista(b.dataset.vista);
+  function alTocarPestana(ev) {
+    var b = ev.target.closest("[data-vista]");
+    if (b) cambiarVista(b.dataset.vista);
+  }
+  ranuraPestanas.addEventListener("click", alTocarPestana);
+
+  // Resalta en el índice el pasillo que está arriba al hacer scroll, y lo trae a la vista
+  // dentro de la fila de chips (que tiene scroll horizontal propio).
+  var scrollPendiente = false;
+  function marcarPasilloActual() {
+    scrollPendiente = false;
+    var chips = indiceEl.querySelectorAll(".chip-pasillo");
+    if (!chips.length) return;
+    var limite = indiceEl.getBoundingClientRect().bottom + 8;
+    var actual = null;
+    zonaArticulos.querySelectorAll(".grupo-pasillo").forEach(function (sec) {
+      if (sec.getBoundingClientRect().top <= limite) actual = sec.id;
     });
-  });
+    if (!actual) actual = chips[0].getAttribute("href").slice(1);
+    chips.forEach(function (c) {
+      var es = c.getAttribute("href") === "#" + actual;
+      c.classList.toggle("activo", es);
+      if (es) c.setAttribute("aria-current", "true");
+      else c.removeAttribute("aria-current");
+      if (es) {
+        var izq = c.offsetLeft, der = izq + c.offsetWidth;
+        if (izq < indiceEl.scrollLeft || der > indiceEl.scrollLeft + indiceEl.clientWidth) {
+          indiceEl.scrollTo({ left: Math.max(0, izq - 12), behavior: "smooth" });
+        }
+      }
+    });
+  }
+  function alHacerScroll() {
+    if (scrollPendiente) return;
+    scrollPendiente = true;
+    requestAnimationFrame(marcarPasilloActual);
+  }
+  window.addEventListener("scroll", alHacerScroll, { passive: true });
 
   campoRapido.addEventListener("input", function () {
     filtro = campoRapido.value.trim();
@@ -913,6 +961,9 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     if (detenerInfo) detenerInfo();
     if (detenerArticulos) detenerArticulos();
     clearTimeout(temporizadorSinAcceso);
+    window.removeEventListener("scroll", alHacerScroll);
+    ranuraPestanas.removeEventListener("click", alTocarPestana);
+    vaciarRanura("pestanas");
     vaciarRanura("principal");
   };
 }

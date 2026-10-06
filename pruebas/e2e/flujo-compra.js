@@ -352,9 +352,26 @@ async function flujo(browser, ancho, modo) {
   await page.waitForTimeout(900); // scroll suave
   const destino = await page.evaluate(() => {
     const h = document.querySelector("#p-abarrotes .titulo-pasillo").getBoundingClientRect();
-    return { top: Math.round(h.top), visible: h.top >= 0 && h.bottom <= window.innerHeight };
+    const ind = document.querySelector(".indice-pasillos").getBoundingClientRect();
+    const chip = document.querySelector('.chip-pasillo[href="#p-abarrotes"]');
+    return {
+      indiceArriba: Math.round(ind.top),
+      tituloBajoIndice: Math.round(h.top - ind.bottom),
+      chipActivo: chip.classList.contains("activo") && chip.getAttribute("aria-current") === "true",
+      scrollY: Math.round(window.scrollY),
+    };
   });
-  assert.ok(destino.visible && destino.top < 80, "el chip lleva al pasillo y su título queda visible arriba: " + JSON.stringify(destino));
+  // Índice fijo arriba aunque la página bajó; título del pasillo pegado justo debajo; chip
+  // del pasillo actual resaltado.
+  assert.ok(destino.scrollY > 500, "la página sí bajó: " + JSON.stringify(destino));
+  assert.equal(destino.indiceArriba, 0, "el índice queda fijo arriba: " + JSON.stringify(destino));
+  assert.ok(destino.tituloBajoIndice >= -1 && destino.tituloBajoIndice < 40, "título justo debajo del índice: " + JSON.stringify(destino));
+  assert.ok(destino.chipActivo, "chip de Abarrotes resaltado: " + JSON.stringify(destino));
+  // Al seguir bajando a mano, el resaltado cambia de pasillo.
+  await page.evaluate(() => window.scrollTo({ top: document.querySelector("#p-limpieza").offsetTop, behavior: "instant" }));
+  await pausa(page, 400);
+  assert.ok(await page.$eval('.chip-pasillo[href="#p-limpieza"]', (c) => c.classList.contains("activo")), "el resaltado sigue el scroll");
+  if (ancho === 320 || ancho === 390) await page.screenshot({ path: path.join(CAPTURAS, "indice-fijo-" + ancho + "-" + modo + ".png") });
   const marcadoEstilo = await page.$eval(".fila-articulo.marcado .nombre-articulo", (e) => {
     const cs = getComputedStyle(e);
     return { tachado: cs.textDecorationLine, color: cs.color };
@@ -370,6 +387,11 @@ async function flujo(browser, ancho, modo) {
   });
   assert.ok(fuentes.titulos && fuentes.texto, "fuentes cargadas: " + JSON.stringify(fuentes));
   assert.match(fuentes.h1, /Bricolage Grotesque/);
+  // Las vistas viven en la barra: Toda la lista activa con etiqueta (desde 375 px) y ya no
+  // hay pestañas "próximamente".
+  assert.equal(await page.$$eval(".envoltura-barra [data-vista]", (b) => b.length), 2);
+  assert.equal(await page.$$eval(".envoltura-barra [aria-disabled]", (b) => b.length), 0);
+  assert.equal(await page.$$eval(".contenedor [data-vista]", (b) => b.length), 0, "el selector ya no está en el contenido");
   const etiquetaActiva = await page.$eval(".item-barra.activo .etiqueta-barra", (e) => getComputedStyle(e).display);
   assert.equal(etiquetaActiva === "none", ancho < 375, "etiqueta de la pestaña activa visible solo desde 375 px");
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
