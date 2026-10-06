@@ -17,13 +17,29 @@
 
 ## Qué falta / qué NO se probó (decirlo explícito, no inventar que ya se hizo)
 
-- **Firebase**: el usuario confirmó que el proyecto ya existe pero **todavía no configuró
-  Authentication → Google**. `js/firebase-config.js` y `.firebaserc` quedaron con
-  placeholders `REEMPLAZAR-*` — hay que pedirle el Project ID real y el objeto
-  `firebaseConfig` (apiKey, authDomain, databaseURL, storageBucket, messagingSenderId,
-  appId) y pegarlos. También falta el secreto de GitHub
-  `FIREBASE_SERVICE_ACCOUNT_LISTADESUPER` para que el workflow de deploy funcione (§8 del
-  documento base).
+- **Firebase**: Project ID real `pilo-compras`. `js/firebase-config.js` ya tiene el
+  `firebaseConfig` real completo (apiKey, authDomain, databaseURL, storageBucket,
+  messagingSenderId, appId) pegado por el usuario. `.firebaserc` y el workflow ya apuntan a
+  `pilo-compras`.
+  - **Se probó en el navegador** (servidor estático local, no el deploy real): el config
+    carga bien y el botón de login sí intenta abrir el popup hacia
+    `pilo-compras.firebaseapp.com` (correcto). Pero Firebase responde
+    **`auth/api-key-not-valid`**. El formato de la key es correcto (39 caracteres, prefijo
+    `AIzaSy`), no parece typo. Hipótesis más probable: restricciones de la API key en
+    **Google Cloud Console → APIs y servicios → Credenciales** (por HTTP referrer, que
+    quizá no incluye el dominio real de Hosting todavía, o porque "Identity Toolkit API" no
+    está habilitada / la key está restringida a otras APIs). **Pendiente que el usuario lo
+    revise ahí.**
+  - **Pendiente de confirmar por el usuario**: si ya habilitó Authentication → Google en la
+    consola de Firebase (se le dieron los pasos; no hay confirmación en esta sesión de que
+    ya lo hizo).
+  - Falta el secreto de GitHub `FIREBASE_SERVICE_ACCOUNT_LISTADESUPER` — **todavía no
+    existe** (`gh secret list` vacío al cerrar esta sesión) — sin él el workflow de deploy
+    va a fallar en rojo al hacer merge a `main`. Se le dieron al usuario los pasos exactos
+    (CLI `firebase init hosting:github` o cuenta de servicio manual).
+- Se encontró y corrigió un bug real al probar el botón de login: `ev.currentTarget` es
+  `null` dentro de un `.catch()` asíncrono, causaba un `TypeError` no capturado al fallar
+  el login (ver AGENTS.md §6). Ya corregido en `index.html` y verificado en el navegador.
 - El entorno de esta sesión **no tenía Node.js, npm ni Firebase CLI instalados** → no se
   pudo: correr `node --check` sobre los `.js`, correr pruebas de lógica pura, usar el
   Emulador de Firebase para probar `database.rules.json`, ni correr Playwright. Antes de

@@ -71,15 +71,28 @@ confirmado — se usará en Fase 4).
 
 ## 6. Errores a evitar (bitácora)
 
-- (Vacío por ahora — esta sección se llena cuando algo falla en producción o en pruebas y
-  se corrige, para no repetir el error.)
+- **`Event.currentTarget` es `null` fuera del despacho síncrono del evento.** Guardarlo en
+  una variable local antes de usarlo dentro de un `.then()`/`.catch()` asíncrono (pasó en
+  el botón de login: `ev.currentTarget.disabled = false` dentro del `.catch()` tiraba
+  `TypeError: Cannot set properties of null`). Corregido en `index.html`.
+- Si `signInWithPopup` cae a `signInWithRedirect` y esa redirección no llega a completarse
+  (prueba automatizada, popup bloqueado a medias, usuario cierra la pestaña a mitad), el
+  estado "redirect pendiente" queda guardado en el IndexedDB `firebaseLocalStorageDb` y
+  `requerirSesion()` puede quedarse sin disparar en la siguiente carga. En un navegador
+  real la redirección sí completa (va y vuelve), así que no debería pasar en producción,
+  pero si un usuario reporta pantalla en blanco persistente, decirle que borre datos del
+  sitio (o probar `localStorage.clear()` + borrar el IndexedDB) como primer diagnóstico.
 
 ## 7. Pendiente de verificar (no inventar que ya se probó)
 
 - Versión del SDK compat de Firebase (`10.14.1`) no se confirmó contra la más reciente —
   no había acceso a internet en la sesión que creó este archivo.
 - `database.rules.json` no se probó con el Emulador de Firebase ni el Rules Playground.
-- Login con Google no se probó en iPhone real (Safari ni PWA instalada).
+- Login con Google no se probó en iPhone real (Safari ni PWA instalada). Tampoco se pudo
+  completar un login real en esta sesión: Authentication → Google todavía no está
+  habilitado en la consola, y la `apiKey` actual devuelve `auth/api-key-not-valid` (ver
+  `PROXIMA_SESION.md` — probablemente restricciones de la API key en Google Cloud Console,
+  no un typo: el formato y los demás campos del config son correctos).
 - El paso `deploy --only database` del workflow de GitHub Actions no se ejecutó nunca
   (requiere el proyecto de Firebase y los secretos ya configurados en GitHub).
 - `node --check` y las pruebas de lógica pura en Node no corrieron esta sesión: **no hay

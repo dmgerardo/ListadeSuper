@@ -16,7 +16,7 @@ jobs:
           args: deploy --only database
         env:
           GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LISTADESUPER }}
-          PROJECT_ID: REEMPLAZAR-project-id # debe coincidir con .firebaserc
+          PROJECT_ID: pilo-compras
 
       - name: Deploy a Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -24,4 +24,4 @@ jobs:
           repoToken: "${{ secrets.GITHUB_TOKEN }}"
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_LISTADESUPER }}"
           channelId: live
-          projectId: REEMPLAZAR-project-id # debe coincidir con .firebaserc
+          projectId: pilo-compras
