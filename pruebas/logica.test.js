@@ -274,3 +274,111 @@ test("copiarArticulos: datos del artículo, sin autoría ajena; todo marcado o i
   assert.equal(igual.find((a) => a.nombre === "Pinol").comprado, true, "conserva marcado");
   assert.deepEqual(plano(L.copiarArticulos({}, {})), []);
 });
+
+// ===== Pasillos personalizados y tabulador como viñeta =====
+
+test("categoriasEfectivas: sin personalizar = los 14; personalizado = ese conjunto, con Especiales siempre", () => {
+  assert.equal(Object.keys(plano(L.categoriasEfectivas(undefined))).length, 14);
+  assert.equal(Object.keys(plano(L.categoriasEfectivas({}))).length, 14);
+  const c = plano(L.categoriasEfectivas({ frutas: { nombre: " Fruta fresca " }, c_ab12: { nombre: "Mascotas" }, "MAL ID": { nombre: "x" }, vacio: { nombre: "  " } }));
+  assert.deepEqual(c, { frutas: "Fruta fresca", c_ab12: "Mascotas", especiales: "Especiales" });
+});
+
+test("ordenCategoriasEfectivo con pasillos propios: los creados van al final, los borrados no aparecen", () => {
+  const cats = { especiales: "Especiales", frutas: "Frutas", c_x1: "Mascotas" };
+  assert.deepEqual(plano(L.ordenCategoriasEfectivo(["c_x1", "verduras", "frutas"], cats)), ["c_x1", "frutas", "especiales"]);
+  assert.deepEqual(plano(L.ordenCategoriasEfectivo(undefined, cats)), ["especiales", "frutas", "c_x1"]);
+});
+
+test("validarNombreCategoria: vacío, largo y repetido (sin acentos) se rechazan; renombrarse a sí mismo se permite", () => {
+  const cats = { especiales: "Especiales", panaderia: "Panadería", c_x1: "Mascotas" };
+  assert.equal(L.validarNombreCategoria("  ", cats, null).ok, false);
+  assert.equal(L.validarNombreCategoria("x".repeat(41), cats, null).ok, false);
+  assert.equal(L.validarNombreCategoria("panaderia", cats, null).ok, false);
+  assert.equal(L.validarNombreCategoria("PANADERÍA", cats, "c_x1").ok, false);
+  assert.equal(L.validarNombreCategoria("panaderia", cats, "panaderia").ok, true);
+  const v = L.validarNombreCategoria("  Pan   dulce ", cats, null);
+  assert.equal(v.ok, true);
+  assert.equal(v.nombre, "Pan dulce");
+});
+
+test("idNuevaCategoria: solo [a-z0-9_], ≤ 40 y distinto de los existentes", () => {
+  const id = L.idNuevaCategoria({});
+  assert.match(id, /^[a-z0-9_]{1,40}$/);
+  assert.notEqual(L.idNuevaCategoria({ [id]: "x" }), id);
+});
+
+test("contarPorCategoria: un pasillo inexistente cuenta en Especiales (ahí se ve)", () => {
+  const cats = { especiales: "Especiales", frutas: "Frutas", c_x1: "Mascotas" };
+  const art = { a: { nombre: "Manzana", categoria: "frutas" }, b: { nombre: "Croquetas", categoria: "c_x1" }, c: { nombre: "Raro", categoria: "borrado" }, d: { categoria: "frutas" } };
+  assert.deepEqual(plano(L.contarPorCategoria(art, cats)), { frutas: 1, c_x1: 1, especiales: 1 });
+});
+
+test("escrituraCategorias: primera personalización escribe todo; luego solo lo que cambió; eliminar = null", () => {
+  const defecto = plano(L.categoriasEfectivas(undefined));
+  // Primera vez (info sin categorias): renombrar Frutas escribe los 14 y el orden.
+  const nuevas = Object.assign({}, defecto, { frutas: "Fruta fresca" });
+  const c1 = plano(L.escrituraCategorias({}, nuevas, null));
+  assert.equal(c1["categorias/frutas/nombre"], "Fruta fresca");
+  assert.equal(c1["categorias/verduras/nombre"], "Verduras");
+  assert.equal(c1.ordenCategorias.length, 14);
+  // Ya personalizada: solo el cambio.
+  const info = { categorias: Object.fromEntries(Object.entries(nuevas).map(([k, v]) => [k, { nombre: v }])) };
+  const nuevas2 = Object.assign({}, nuevas, { c_x1: "Mascotas" });
+  const c2 = plano(L.escrituraCategorias(info, nuevas2, L.ordenCategoriasEfectivo(null, nuevas2).concat([])));
+  assert.deepEqual(Object.keys(c2).sort(), ["categorias/c_x1/nombre", "ordenCategorias"]);
+  assert.equal(c2.ordenCategorias[c2.ordenCategorias.length - 1], "c_x1");
+  // Eliminar.
+  const sinFarmacia = Object.assign({}, nuevas); delete sinFarmacia.farmacia;
+  const c3 = plano(L.escrituraCategorias(info, sinFarmacia, null));
+  assert.equal(c3["categorias/farmacia"], null);
+  assert.ok(!c3.ordenCategorias.includes("farmacia"));
+});
+
+test("importar: un renglón que empieza con tabulador es artículo (con o sin viñeta)", () => {
+  const r = plano(L.parsearNotaImportada("Frutas\n\tPlátanos\n\t• Mangos\n\t\tUvas\n  \t- Peras\nVerduras\n\tTomate\nSin tabulador"));
+  assert.deepEqual(r.articulos.map((a) => a.nombre + "@" + a.categoria), [
+    "Plátanos@frutas", "Mangos@frutas", "Uvas@frutas", "Peras@frutas", "Tomate@verduras"
+  ]);
+  assert.deepEqual(r.ignorados, ["Sin tabulador"]);
+});
+
+test("importar: un renglón con tabulador que se llama como un pasillo sigue siendo artículo", () => {
+  const r = plano(L.parsearNotaImportada("Frutas\n\tVerduras"));
+  assert.deepEqual(r.articulos.map((a) => a.nombre + "@" + a.categoria), ["Verduras@frutas"]);
+});
+
+test("importar: reconoce pasillos renombrados y creados; los alias solo si el destino existe", () => {
+  const cats = { especiales: "Especiales", verduras: "Frutas y verduras frescas", c_x1: "Mascotas", c_x2: "Pan" };
+  const r = plano(L.parsearNotaImportada("Mascotas\n\tCroquetas\nFrutas y verduras frescas\n\tChile\nPan\n\tBolillo\nCarnes\n\tBistec", cats));
+  assert.deepEqual(r.articulos.map((a) => a.nombre + "@" + a.categoria), [
+    "Croquetas@c_x1", "Chile@verduras", "Bolillo@c_x2", "Bistec@c_x2" // "Carnes" → carniceria no existe: es renglón ignorado
+  ]);
+  assert.deepEqual(r.ignorados, ["Carnes"]);
+});
+
+test("agruparArticulos y copiarArticulos usan los pasillos de la lista", () => {
+  const cats = { especiales: "Especiales", c_x1: "Mascotas" };
+  const art = { a: { nombre: "Croquetas", categoria: "c_x1", comprado: false } };
+  const g = plano(L.agruparArticulos(art, ["c_x1"], { categorias: cats }));
+  assert.equal(g[0].nombre, "Mascotas");
+  assert.equal(plano(L.copiarArticulos(art, { categorias: cats }))[0].categoria, "c_x1");
+});
+
+test("iconoPasillo/clasePasillo: los creados usan 'tag' y un color existente, estable", () => {
+  assert.equal(L.iconoPasillo("frutas"), "apple");
+  assert.equal(L.iconoPasillo("c_abc"), "tag");
+  assert.equal(L.clasePasillo("frutas"), "pasillo-frutas");
+  const c = L.clasePasillo("c_abc");
+  assert.equal(c, L.clasePasillo("c_abc"));
+  assert.ok(g("CATEGORIAS_ORDEN_DEFECTO").map((x) => "pasillo-" + x).includes(c));
+  assert.notEqual(c, "pasillo-especiales");
+});
+
+test("favoritos: soloFavoritos filtra, y duplicar conserva la estrella", () => {
+  const art = { a: { nombre: "Leche", categoria: "refris", favorito: true }, b: { nombre: "Queso", categoria: "refris" } };
+  assert.deepEqual(plano(L.agruparArticulos(art, null, { soloFavoritos: true }))[0].articulos.map((x) => x.nombre), ["Leche"]);
+  assert.equal(L.agruparArticulos(art, null, {})[0].articulos.length, 2);
+  const copia = plano(L.copiarArticulos(art, {}));
+  assert.deepEqual(copia.map((c) => [c.nombre, c.favorito]), [["Leche", true], ["Queso", undefined]]);
+});

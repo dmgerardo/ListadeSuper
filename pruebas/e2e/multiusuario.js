@@ -118,6 +118,9 @@ async function invitacionYCoordinacion(browser, viewport, etiqueta) {
   for (const n of ["Leche", "Pan", "Huevo", "Café"]) {
     await page.fill("[data-campo-rapido]", n);
     await page.press("[data-campo-rapido]", "Enter");
+    // Un artículo nuevo abre el formulario: se elige el pasillo y se guarda.
+    await page.selectOption("#art-categoria", "abarrotes");
+    await page.click('[data-form-articulo] button[type="submit"]');
     await pausa(page, 150);
   }
   const articulos = await leerBD(page, "listas/" + listaId + "/articulos");
@@ -292,6 +295,9 @@ async function duplicar(browser) {
   for (const n of ["Leche", "Pan", "Café"]) {
     await page.fill("[data-campo-rapido]", n);
     await page.press("[data-campo-rapido]", "Enter");
+    // Un artículo nuevo abre el formulario: se elige el pasillo y se guarda.
+    await page.selectOption("#art-categoria", "abarrotes");
+    await page.click('[data-form-articulo] button[type="submit"]');
     await pausa(page, 150);
   }
   await page.click('[aria-label="Marcar Pan como comprado"]');

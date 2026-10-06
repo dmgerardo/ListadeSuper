@@ -127,9 +127,23 @@ async function flujo(browser, ancho, modo) {
   await page.fill("[data-campo-rapido]", "2 kg tomate");
   await page.press("[data-campo-rapido]", "Enter");
   await pausa(page);
-  assert.equal(await ultimoToast(page), "tomate agregado a Especiales");
+  // Artículo nuevo: abre el formulario con lo escrito y SIN pasillo elegido (no se asume Especiales).
+  assert.ok(await page.isVisible("[data-form-articulo]"), "Enter con un artículo nuevo abre el formulario");
+  assert.equal(await page.inputValue("#art-nombre"), "tomate");
+  assert.equal(await page.$("#art-cantidad"), null, "el formulario ya no tiene campo de cantidad");
+  // Orden pedido: nombre / pasillo / unidad + precio / notas (caja de 3 renglones).
+  assert.deepEqual(await page.$$eval("[data-form-articulo] input:not([type=hidden]), [data-form-articulo] select, [data-form-articulo] textarea", (c) => c.map((x) => x.id)),
+    ["art-nombre", "art-categoria", "art-unidad", "art-precio", "art-notas"]);
+  assert.equal(await page.getAttribute("#art-notas", "rows"), "3");
+  assert.equal(await page.inputValue("#art-unidad"), "kg");
+  assert.equal(await page.inputValue("#art-categoria"), "", "sin pasillo por defecto");
+  await page.click('[data-form-articulo] button[type="submit"]');
+  assert.match(await page.textContent("[data-error]"), /Elige el pasillo/);
+  await page.selectOption("#art-categoria", "especiales");
+  await page.click('[data-form-articulo] button[type="submit"]');
+  await pausa(page);
+  assert.equal(await ultimoToast(page), "Guardado ✓");
   assert.equal(await page.inputValue("[data-campo-rapido]"), "", "el campo se limpia");
-  assert.ok(await page.evaluate(() => document.activeElement.matches("[data-campo-rapido]")), "el foco se queda en el campo");
   await page.fill("[data-campo-rapido]", "PLATANOS");
   await page.press("[data-campo-rapido]", "Enter");
   await pausa(page);
@@ -141,7 +155,46 @@ async function flujo(browser, ancho, modo) {
   assert.equal(await page.textContent("[data-contador-pendientes]"), "4");
   const total = Object.keys(await leerBD(page, "listas/" + listaId + "/articulos")).length;
   assert.equal(total, 172, "Plátanos/Mangos no se duplicaron; solo se agregó tomate");
+  // "+" en el título de un pasillo: formulario con ESE pasillo ya elegido.
+  await page.click('[data-vista="todo"]');
+  await pausa(page);
+  await page.click('[data-agregar-pasillo="panaderia"]');
+  await pausa(page);
+  assert.equal(await page.inputValue("#art-categoria"), "panaderia");
+  assert.equal(await page.inputValue("#art-nombre"), "");
+  await page.fill("#art-nombre", "Pan de caja prueba");
+  await page.click('[data-form-articulo] button[type="submit"]');
+  await pausa(page);
+  const todosArts = await leerBD(page, "listas/" + listaId + "/articulos");
+  const idPan = Object.keys(todosArts).find((k) => todosArts[k].nombre === "Pan de caja prueba");
+  assert.equal(todosArts[idPan].categoria, "panaderia");
+  assert.equal(todosArts[idPan].comprado, false);
+  // Se quita para no alterar los conteos de los pasos siguientes (172 artículos).
+  await page.evaluate(([l, k]) => window.__mockBD.escribirComoOtro({ ["listas/" + l + "/articulos/" + k]: null }), [listaId, idPan]);
+  await pausa(page);
+  await page.click('[data-vista="pendientes"]');
+  await pausa(page);
   paso("campo rápido: buscar, alta '2 kg tomate', sin duplicar existentes");
+
+  // Favoritos: estrella por renglón y filtro (en Por comprar y en Toda la lista).
+  await page.click('[aria-label="Marcar como favorito: Mangos"]');
+  await pausa(page);
+  assert.equal((Object.values(await leerBD(page, "listas/" + listaId + "/articulos")).find((a) => a.nombre === "Mangos")).favorito, true);
+  await page.click('[data-accion="solo-favoritos"]');
+  await pausa(page);
+  assert.deepEqual(await nombresVisibles(page), ["Mangos"], "el filtro deja solo los favoritos");
+  assert.match(await page.textContent('[data-accion="solo-favoritos"]'), /Favoritos \(1\)/);
+  await page.click('[data-vista="todo"]');
+  await pausa(page);
+  assert.deepEqual(await nombresVisibles(page), ["Mangos"], "el filtro vale también en Toda la lista");
+  await page.click('[aria-label="Quitar de favoritos: Mangos"]');
+  await pausa(page);
+  assert.match(await page.textContent(".tarjeta-vacia"), /Aún no tienes favoritos/);
+  assert.equal((Object.values(await leerBD(page, "listas/" + listaId + "/articulos")).find((a) => a.nombre === "Mangos")).favorito, undefined, "quitar borra el campo");
+  await page.click('[data-accion="solo-favoritos"]');
+  await page.click('[data-vista="pendientes"]');
+  await pausa(page);
+  paso("favoritos: estrella, filtro en ambas vistas, estado vacío, quitar borra el campo");
 
   // 5b. "+" con el campo vacío abre el formulario completo.
   await page.click('[aria-label="Agregar artículo"]');
@@ -336,12 +389,12 @@ async function flujo(browser, ancho, modo) {
   assert.equal(await page.$$eval(".fondo-modal", (m) => m.length), 0);
   assert.equal((Object.values(await leerBD(page, "listas/" + listaId + "/articulos")).find((a) => a.nombre === "Mangos")).notas, undefined);
 
-  // 12. Validación del formulario: cantidad inválida no se guarda.
+  // 12. Validación del formulario: precio inválido no se guarda.
   await page.click('[aria-label="Editar Mangos"]');
-  await page.fill("#art-cantidad", "0");
+  await page.fill("#art-precio", "abc");
   await page.click('[data-form-articulo] button[type="submit"]');
   await pausa(page);
-  assert.match(await page.textContent("[data-error]"), /mayor que 0/);
+  assert.match(await page.textContent("[data-error]"), /precio debe ser/);
   // Con cambios, Escape ya no cierra directo: pregunta; se descarta.
   await page.keyboard.press("Escape");
   await pausa(page);
@@ -378,13 +431,13 @@ async function flujo(browser, ancho, modo) {
   assert.equal((Object.values(await leerBD(page, "listas/" + listaId + "/articulos")).find((a) => a.nombre === "Mangos")).notas, "de Manila", "Guardar desde la confirmación guarda");
   // Guardar con un dato inválido desde la confirmación: el formulario se queda abierto con su error.
   await page.click('[aria-label="Editar Mangos"]');
-  await page.fill("#art-cantidad", "0");
+  await page.fill("#art-precio", "abc");
   await tocarFuera();
   await pausa(page);
   await page.click('[data-accion="guardar"]');
   await pausa(page);
   assert.equal(await modales(), 1, "inválido: se queda abierto");
-  assert.match(await page.textContent("[data-error]"), /mayor que 0/);
+  assert.match(await page.textContent("[data-error]"), /precio debe ser/);
   await tocarFuera();
   await pausa(page);
   await page.click('[data-accion="descartar"]');

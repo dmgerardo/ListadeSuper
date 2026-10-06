@@ -64,6 +64,26 @@ en npm es `12.19.0`, ver §7).
   `auth.uid` a propósito (el Deshacer de un borrado restaura la autoría de otro miembro).
 - **Antes de cada push**: `node --check`, `node --test pruebas/*.test.js`, pruebas de reglas
   y `pruebas/e2e/flujo-compra.js` (ver `pruebas/README.md`).
+- **Pasillos por lista** (v20): `info.categorias/{id}: { nombre }` solo existe si la lista los
+  personalizó; sin él rigen los 14 de `catalogo-categorias.js`. Una vez personalizada, ese nodo es
+  el conjunto COMPLETO (la primera edición escribe todos) y el orden va en `info.ordenCategorias`.
+  Todo cálculo recibe los pasillos de la lista (`categoriasEfectivas(info.categorias)` →
+  `agruparArticulos(..., { categorias })`, `categoriaValida(id, cats)`, `parsearNotaImportada(texto,
+  cats)`); nunca leer `CATEGORIAS_NOMBRES` directo para pintar. "Especiales" (`CATEGORIA_DEFECTO`)
+  es el cajón: se puede renombrar pero no eliminar. Solo se elimina un pasillo vacío (lo verifica
+  el cliente con `contarPorCategoria`; las reglas no pueden). Los creados usan id `c_…`, ícono
+  `tag` y reciclan un color existente (`clasePasillo`/`iconoPasillo`), sin hex nuevos. Duplicar una
+  lista copia `info.categorias`. Dentro de la hoja "Pasillos" los avisos y su Deshacer van EN la hoja
+  (los toasts quedan debajo de los modales).
+- **Importar**: un renglón que empieza con tabulador es artículo aunque no traiga viñeta; los
+  encabezados se reconocen contra los pasillos de la lista (nombre propio antes que alias).
+- **Artículo nuevo desde el campo rápido** (Enter o +, si no existe): abre el formulario con
+  nombre/cantidad/unidad ya puestos y SIN pasillo elegido (hay que escogerlo; no se asume
+  Especiales). El "+" del título de cada pasillo abre el mismo formulario con ese pasillo.
+  El formulario no tiene campo de cantidad (se cambia con (−)/(+)); orden: nombre, pasillo,
+  unidad + precio, notas.
+- **Favorito**: `articulos/{id}/favorito: true` (se quita con `null`, no `false`); estrella en cada
+  renglón y filtro "Favoritos" en memoria (vale en las dos vistas). Se copia al duplicar.
 - **Español** en UI, comentarios, commits y documentación.
 - **Controles globales solo en la barra inferior flotante** (`render-utils.js`): pestañas de
   la pantalla, ayuda, estado+versión y cuenta van dentro de la píldora; la acción principal
@@ -107,7 +127,7 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `js/render-utils.js` | `esc`, `urlSegura`, `formatoMoneda`, `hoyLocalISO`, `abrirModal`, `confirmarCierreConCambios`, `mostrarToast` y la barra inferior flotante: `barraInferior`, `ranuraBarra`, `vaciarRanura`, `montarPestanas`, `montarAccionPrincipal`, `montarBotonAyuda`, `montarMenuCuenta` |
 | `js/catalogo-categorias.js` | Las 14 categorías/pasillos del usuario (confirmadas en Fase 2, orden de su nota de iPhone; "Especiales" es el cajón, no hay "Otros"), su ícono (`CATEGORIAS_ICONOS`), alias para importar y las 11 unidades |
 | `js/logica-articulos.js` | Lógica pura, probada en Node: `normalizarNombre`, `interpretarTextoRapido` ("2 kg tomate"), `ordenCategoriasEfectivo`, `agruparArticulos`, `totalesLista`, `parsearNotaImportada`, `separarRepetidos`, `buscarPorNombre`, `textoCantidad`, `pasoDeUnidad`, `siguienteCantidad`, `etiquetaUnidad` (contador −/+), `compararPorNombre` (orden alfabético), `cantidadParaUnidad`, `contarSinPrecio` (editor de precios), `copiarArticulos` (duplicar lista) |
-| `js/vista-articulos.js` | Pantalla de una lista: vistas "Por comprar"/"Toda la lista", campo rápido (busca + agrega), formulario agregar/editar/eliminar, marcar todo, importar nota, totales, Deshacer |
+| `js/vista-articulos.js` | Pantalla de una lista (incluye la hoja "Pasillos" y el filtro Favoritos): vistas "Por comprar"/"Toda la lista", campo rápido (busca + agrega), formulario agregar/editar/eliminar, marcar todo, importar nota, totales, Deshacer |
 | `js/vista-listas.js` | Pantalla "Mis listas": crear, abrir, renombrar, eliminar (dueño); avisos según rol |
 | `js/roles.js` | `ADMIN_RAIZ`, `rolEfectivo`, `asegurarRol`, `escucharRol`, `montarCuentaConRol` |
 | `js/vista-usuarios.js` + `js/pagina-usuarios.js` + `usuarios.html` | Administración de usuarios (rol y activo) |

@@ -325,6 +325,47 @@ test("duplicar: no sirve para meter artículos en una lista existente ajena", as
 
 // ===== Editores: todo menos eliminar la lista =====
 
+test("favorito: booleano, lo cambia cualquier miembro y se quita con null; no-miembro no", async () => {
+  await assertSucceeds(update(ref(bd("bob")), { "listas/L1/articulos/a1/favorito": true }));
+  await assertSucceeds(update(ref(bd("alice")), { "listas/L1/articulos/a1/favorito": null }));
+  await assertFails(update(ref(bd("bob")), { "listas/L1/articulos/a1/favorito": "si" }));
+  await assertFails(update(ref(bd("carol")), { "listas/L1/articulos/a1/favorito": true }));
+});
+
+test("pasillos personalizados: editor y dueño renombran/crean/eliminan; no-miembro y desactivado no; validación", async () => {
+  const base = "listas/L1/info/";
+  // Primera personalización (bob = editor): categorias + orden en UNA escritura multi-ruta.
+  await assertSucceeds(update(ref(bd("bob")), {
+    [base + "categorias/especiales/nombre"]: "Especiales",
+    [base + "categorias/frutas/nombre"]: "Fruta fresca",
+    [base + "categorias/c_mascotas1/nombre"]: "Mascotas",
+    [base + "ordenCategorias"]: ["especiales", "frutas", "c_mascotas1"],
+  }));
+  // El dueño renombra uno y elimina otro (null).
+  await assertSucceeds(update(ref(bd("alice")), { [base + "categorias/frutas/nombre"]: "Frutas", [base + "categorias/c_mascotas1"]: null }));
+  // No-miembro y desactivada: no.
+  await assertFails(update(ref(bd("carol")), { [base + "categorias/c_x1/nombre"]: "Intruso" }));
+  await assertFails(update(ref(bd("zoe")), { [base + "categorias/c_x1/nombre"]: "Desactivada" }));
+  // Validación: id con mayúsculas/espacios, nombre vacío o de más de 40, campo ajeno.
+  await assertFails(update(ref(bd("bob")), { [base + "categorias/Mal Id/nombre"]: "x" }));
+  await assertFails(update(ref(bd("bob")), { [base + "categorias/c_x1/nombre"]: "" }));
+  await assertFails(update(ref(bd("bob")), { [base + "categorias/c_x1/nombre"]: "x".repeat(41) }));
+  await assertFails(update(ref(bd("bob")), { [base + "categorias/c_x1/nombre"]: "Ok", [base + "categorias/c_x1/color"]: "rojo" }));
+  // Las lecturas siguen siendo solo de miembros.
+  await assertSucceeds(get(ref(bd("bob"), base + "categorias")));
+  await assertFails(get(ref(bd("carol"), base + "categorias")));
+});
+
+test("duplicar con pasillos personalizados: info.categorias viaja en la misma escritura de la lista nueva", async () => {
+  await assertSucceeds(update(ref(bd("carol")), {
+    "listas/L9/info": { nombre: "Copia", moneda: "MXN", creadaPor: "carol", creada: AHORA, ordenCategorias: ["especiales", "c_m1"],
+      categorias: { especiales: { nombre: "Especiales" }, c_m1: { nombre: "Mascotas" } } },
+    "listas/L9/miembros/carol": { rol: "dueno" },
+    "listasDeUsuario/carol/L9": true,
+    "listas/L9/articulos/n1": articulo({ nombre: "Croquetas", categoria: "c_m1", agregadoPor: "carol" }),
+  }));
+});
+
 test("editor renombra la lista pero no cambia su autor ni la elimina", async () => {
   await assertSucceeds(update(ref(bd("bob"), "listas/L1/info"), { nombre: "Súper semanal" }));
   await assertFails(update(ref(bd("bob"), "listas/L1/info"), { creadaPor: "bob" }));

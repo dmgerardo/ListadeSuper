@@ -6,7 +6,7 @@
 > de verdad técnica (esa es `AGENTS.md`), pero sigue teniendo el detalle completo de cada
 > fase y el modelo de datos.
 
-## Estado actual: v19 en `main`, desplegada (2026-10-06)
+## Estado actual: v20 en la rama de trabajo, SIN publicar a `main` ni desplegar (2026-10-06)
 
 - Sitio: **https://pilo-compras.web.app** (proyecto Firebase `pilo-compras`, RTDB `us-central1`).
   Cada push a `main` despliega Hosting + reglas (GitHub Actions; la corrida 17, la de v19,
@@ -19,6 +19,15 @@
   390/320/1280 px en claro y oscuro. Cómo correrlas: `pruebas/README.md`.
 
 ## Qué se hizo, por versión (más reciente primero)
+
+- **v20 — pasillos, agregar y favoritos** (pedidos del usuario; ver `AGENTS.md` §2):
+  - Hoja "Pasillos" (Toda la lista): renombrar, crear y eliminar vacíos con Deshacer; datos en
+    `info.categorias` (regla nueva con 3 casos en el emulador). Se copian al duplicar.
+  - Importar reconoce los pasillos de la lista y toma el tabulador como viñeta.
+  - Agregar un artículo nuevo abre el formulario sin pasillo preelegido; "+" por pasillo.
+  - Formulario reordenado, sin cantidad. Estrella de favorito + filtro.
+  - Pruebas: lógica 29, reglas 37, `pruebas/e2e/pasillos.js` nuevo, `flujo-compra` y
+    `multiusuario` actualizados (agregar ahora abre formulario). **Sin probar en el sitio real.**
 
 - **v19 — duplicar una lista.** En "Nueva lista" → "Copiar artículos de" (las listas del
   usuario) y "Los artículos copiados entran": todos marcados (por defecto, igual que al

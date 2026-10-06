@@ -58,6 +58,21 @@ const CATEGORIAS_ICONOS = {
   farmacia: "pill"
 };
 
+// Los pasillos que crea el usuario no tienen ícono ni color propios (los tokens de color
+// existen solo para los 14 por defecto, con contraste verificado): usan el ícono "tag" y
+// reciclan uno de esos colores según su id, siempre el mismo para el mismo pasillo.
+function iconoPasillo(id) {
+  return CATEGORIAS_ICONOS[id] || "tag";
+}
+
+function clasePasillo(id) {
+  if (Object.prototype.hasOwnProperty.call(CATEGORIAS_NOMBRES, id)) return "pasillo-" + id;
+  var suma = 0;
+  for (var i = 0; i < String(id).length; i++) suma = (suma * 31 + String(id).charCodeAt(i)) % 9973;
+  var paleta = CATEGORIAS_ORDEN_DEFECTO.slice(1); // sin "especiales": ese color es del cajón
+  return "pasillo-" + paleta[suma % paleta.length];
+}
+
 // Otros nombres con los que puede venir un encabezado al importar una nota (ya
 // normalizados: minúsculas, sin acentos). El nombre propio de cada categoría se reconoce
 // solo, no hace falta repetirlo aquí.

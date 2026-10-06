@@ -43,12 +43,19 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
   // lista NO se repinta con cada cambio de la base: perdería el foco y lo que se está
   // escribiendo. Se repinta solo al entrar, al cambiar el filtro o "Solo sin precio".
   var modoPrecios = false;
+  var soloFavoritos = false; // filtro "Favoritos" (en memoria; vale para las dos vistas y la búsqueda)
   var soloSinPrecio = false;
   var editorPintado = false;
   var detenerInfo = null;
   var detenerArticulos = null;
   var temporizadorSinAcceso = null;
   var sinAcceso = false;
+
+  // Pasillos de ESTA lista ({ id: nombre }): los 14 por defecto o los que personalizó (info.categorias).
+  function categoriasLista() {
+    return categoriasEfectivas(info.categorias);
+  }
+  var gestorPasillos = null; // hoja "Pasillos" abierta, para repintarla con los cambios en vivo
 
   var refArticulos = refNodo("listas/" + listaId + "/articulos");
   function refArticulo(id) {
@@ -172,6 +179,9 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       "</span>" +
       precio +
       "</button>" +
+      '<button type="button" class="btn-favorito" data-favorito="' + esc(a.id) + '" aria-pressed="' + (a.favorito ? "true" : "false") + '" ' +
+      'aria-label="' + esc((a.favorito ? "Quitar de favoritos: " : "Marcar como favorito: ") + a.nombre) + '" ' +
+      'title="' + (a.favorito ? "Quitar de favoritos" : "Marcar como favorito") + '">' + icono("star", 20) + "</button>" +
       (conContador ? controlCantidad(a) : "") +
       "</li>"
     );
@@ -206,8 +216,10 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         return (
           '<section class="grupo-pasillo" id="p-' + esc(g.categoria) + '">' +
           '<h2 class="titulo-pasillo">' +
-          '<span class="baldosa-pasillo pasillo-' + esc(g.categoria) + '" aria-hidden="true">' + icono(CATEGORIAS_ICONOS[g.categoria], 18) + "</span>" +
-          esc(g.nombre) + ' <span class="contador">' + g.articulos.length + "</span></h2>" +
+          '<span class="baldosa-pasillo ' + esc(clasePasillo(g.categoria)) + '" aria-hidden="true">' + icono(iconoPasillo(g.categoria), 18) + "</span>" +
+          esc(g.nombre) + ' <span class="contador">' + g.articulos.length + "</span>" +
+          '<button type="button" class="btn-agregar-pasillo" data-agregar-pasillo="' + esc(g.categoria) + '" ' +
+          'aria-label="' + esc("Agregar un artículo a " + g.nombre) + '" title="' + esc("Agregar a " + g.nombre) + '">' + icono("plus", 18) + "</button></h2>" +
           '<ul class="lista-articulos">' + g.articulos.map(fila).join("") + "</ul>" +
           "</section>"
         );
@@ -222,7 +234,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       .map(function (g) {
         var pendientes = g.articulos.filter(function (a) { return !a.comprado; }).length;
         return (
-          '<a class="chip-pasillo pasillo-' + esc(g.categoria) + '" href="#p-' + esc(g.categoria) + '" ' +
+          '<a class="chip-pasillo ' + esc(clasePasillo(g.categoria)) + '" href="#p-' + esc(g.categoria) + '" ' +
           'aria-label="' + esc(g.nombre + ": " + pendientes + " por comprar") + '">' +
           '<span class="chip-numero" aria-hidden="true">' + pendientes + "</span>" +
           "<span>" + esc(g.nombre) + "</span></a>"
@@ -286,8 +298,11 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       var acciones = "";
       var botonActividad = '<button type="button" class="btn-texto enlace-con-icono boton-actividad" data-accion="actividad">' +
         icono("history", 18) + "<span>Actividad</span></button>";
+      var totalFavoritos = Object.keys(articulos).filter(function (k) { return articulos[k] && articulos[k].favorito; }).length;
+      var botonFavoritos = '<button type="button" class="btn-texto enlace-con-icono boton-filtro-favoritos" data-accion="solo-favoritos" aria-pressed="' +
+        (soloFavoritos ? "true" : "false") + '">' + icono("star", 18) + "<span>Favoritos (" + totalFavoritos + ")</span></button>";
       if (!filtro) {
-        acciones = botonActividad;
+        acciones = botonActividad + botonFavoritos;
         if (vista === "pendientes" && t.pendientes > 0) {
           acciones += '<button type="button" class="btn-texto enlace-con-icono" data-accion="marcar-todo">' +
             icono("check-check", 18) + "<span>Marcar todo como comprado</span></button>";
@@ -295,6 +310,8 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
           acciones +=
             '<button type="button" class="btn-texto enlace-con-icono" data-accion="editar-precios">' +
             icono("pencil", 18) + "<span>Unidades y precios</span></button>" +
+            '<button type="button" class="btn-texto enlace-con-icono" data-accion="pasillos">' +
+            icono("tags", 18) + "<span>Pasillos</span></button>" +
             '<button type="button" class="btn-texto enlace-con-icono" data-accion="importar">' +
             icono("clipboard-list", 18) + "<span>Importar desde una nota</span></button>";
         }
@@ -316,7 +333,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       if (filtro) {
         // Al buscar se ve TODO lo que coincide (marcado o no), para poder desmarcar algo que
         // ya existe en vez de agregarlo duplicado.
-        var coincidencias = agruparArticulos(articulos, info.ordenCategorias, { filtro: filtro });
+        var coincidencias = agruparArticulos(articulos, info.ordenCategorias, { categorias: categoriasLista(), soloFavoritos: soloFavoritos, filtro: filtro });
         indiceEl.innerHTML = ""; // al buscar, el índice estorba: se ve solo lo que coincide
         var exacto = buscarPorNombre(articulos, interpretarTextoRapido(filtro).nombre);
         var sugerencia = exacto
@@ -328,9 +345,18 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         return;
       }
 
-      var grupos = agruparArticulos(articulos, info.ordenCategorias, { soloPendientes: vista === "pendientes" });
+      var grupos = agruparArticulos(articulos, info.ordenCategorias, { categorias: categoriasLista(), soloFavoritos: soloFavoritos, soloPendientes: vista === "pendientes" });
       pintarIndice(grupos);
       var recientes = vista === "pendientes" ? seccionRecientes() : "";
+      if (soloFavoritos && grupos.length === 0) {
+        zonaArticulos.innerHTML = recientes +
+          '<div class="tarjeta tarjeta-vacia">' +
+          '<span class="circulo-vacio" aria-hidden="true">' + icono("star", 26) + "</span>" +
+          '<p class="titulo-vacio">' + (vista === "pendientes" ? "Ningún favorito por comprar" : "Aún no tienes favoritos") + "</p>" +
+          "<p>Toca la estrella de un artículo para marcarlo como favorito.</p>" +
+          '<button type="button" class="btn btn-secundario" data-accion="solo-favoritos">Ver todos</button></div>';
+        return;
+      }
       if (vista === "pendientes" && grupos.length === 0) {
         zonaArticulos.innerHTML = recientes +
           '<div class="tarjeta tarjeta-vacia">' +
@@ -382,7 +408,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       "</div>" +
       '<p class="pista-busqueda">Precio por unidad. Se guarda solo al salir de cada campo; Enter pasa al siguiente.</p>';
     if (editorPintado) return;
-    var grupos = agruparArticulos(articulos, info.ordenCategorias, { filtro: filtro, soloSinPrecio: soloSinPrecio });
+    var grupos = agruparArticulos(articulos, info.ordenCategorias, { categorias: categoriasLista(), soloFavoritos: soloFavoritos, filtro: filtro, soloSinPrecio: soloSinPrecio });
     if (filtro) indiceEl.innerHTML = "";
     else pintarIndice(grupos);
     zonaArticulos.innerHTML = grupos.length
@@ -512,7 +538,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       nombre: datos.nombre,
       cantidad: datos.cantidad || 1,
       unidad: datos.unidad || "pieza",
-      categoria: categoriaValida(datos.categoria),
+      categoria: categoriaValida(datos.categoria, categoriasLista()),
       comprado: !!datos.comprado,
       agregadoPor: usuario.uid,
       creado: firebase.database.ServerValue.TIMESTAMP
@@ -527,7 +553,8 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
 
   // Enter en el campo rápido: si ya existe un artículo con ese nombre, se pone "por
   // comprar" (con la cantidad escrita, si se escribió una) en vez de duplicarlo; si no, se
-  // crea por comprar en "Especiales" (se cambia de pasillo tocándolo).
+  // abre el formulario de artículo ya con lo escrito (nombre, cantidad, unidad) para que la
+  // persona ELIJA el pasillo: pedido del usuario, no se deja en "Especiales" por defecto.
   function agregarRapido(texto) {
     var datos = interpretarTextoRapido(texto);
     if (!datos.nombre) return;
@@ -565,11 +592,11 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       });
       return;
     }
-    crearArticulo({ nombre: datos.nombre.slice(0, LARGO_MAX_NOMBRE), cantidad: datos.cantidad, unidad: datos.unidad, categoria: CATEGORIA_DEFECTO, comprado: false })
-      .then(function () {
-        mostrarToast(datos.nombre + " agregado a Especiales");
-      })
-      .catch(fallo("No se pudo agregar el artículo"));
+    abrirFormularioArticulo(null, {
+      nombre: datos.nombre.slice(0, LARGO_MAX_NOMBRE),
+      cantidad: String(datos.cantidad),
+      unidad: datos.unidad
+    });
   }
 
   function eliminarArticulo(id) {
@@ -625,9 +652,11 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
   // ===== Formulario agregar / editar (comparten formulario) =====
 
   function opcionesCategoria(seleccionada) {
-    return ordenCategoriasEfectivo(info.ordenCategorias)
+    var cats = categoriasLista();
+    // Artículo nuevo sin pasillo de origen: nada elegido de antemano (hay que escoger uno).
+    return (seleccionada ? "" : '<option value="" selected disabled>Elige un pasillo…</option>') + ordenCategoriasEfectivo(info.ordenCategorias, cats)
       .map(function (id) {
-        return '<option value="' + esc(id) + '"' + (id === seleccionada ? " selected" : "") + ">" + esc(CATEGORIAS_NOMBRES[id]) + "</option>";
+        return '<option value="' + esc(id) + '"' + (id === seleccionada ? " selected" : "") + ">" + esc(cats[id]) + "</option>";
       })
       .join("");
   }
@@ -643,14 +672,17 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       .join("");
   }
 
-  function abrirFormularioArticulo(idExistente) {
+  // prefill (solo artículo nuevo): { nombre, cantidad, unidad, categoria } con lo que ya se sabe
+  // (lo escrito en el campo rápido, o el pasillo desde donde se tocó su "+").
+  function abrirFormularioArticulo(idExistente, prefill) {
+    prefill = prefill || {};
     var a = idExistente ? articulos[idExistente] : null;
     if (idExistente && !a) return;
     var inicial = {
-      nombre: a ? a.nombre : "",
-      cantidad: a && typeof a.cantidad === "number" ? String(a.cantidad) : "1",
-      unidad: a && a.unidad ? a.unidad : "pieza",
-      categoria: a ? categoriaValida(a.categoria) : CATEGORIA_DEFECTO,
+      nombre: a ? a.nombre : prefill.nombre || "",
+      cantidad: a && typeof a.cantidad === "number" ? String(a.cantidad) : prefill.cantidad || "1",
+      unidad: a && a.unidad ? a.unidad : prefill.unidad || "pieza",
+      categoria: a ? categoriaValida(a.categoria, categoriasLista()) : prefill.categoria && categoriasLista()[prefill.categoria] ? prefill.categoria : "",
       precio: a && typeof a.precio === "number" ? String(a.precio) : "",
       notas: a && a.notas ? a.notas : ""
     };
@@ -659,20 +691,18 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         '<form data-form-articulo novalidate>' +
         '<div class="campo"><label for="art-nombre">Nombre</label>' +
         '<input id="art-nombre" name="nombre" type="text" maxlength="120" required value="' + esc(inicial.nombre) + '"></div>' +
-        '<div class="fila-campos">' +
-        '<div class="campo"><label for="art-cantidad">Cantidad</label>' +
-        '<input id="art-cantidad" name="cantidad" type="text" inputmode="decimal" value="' + esc(inicial.cantidad) + '"></div>' +
-        '<div class="campo"><label for="art-unidad">Unidad</label>' +
-        '<select id="art-unidad" name="unidad">' + opcionesUnidad(inicial.unidad) + "</select></div>" +
-        "</div>" +
-        '<div class="fila-campos">' +
+        // Orden pedido por el usuario: nombre / pasillo / unidad + precio / notas. La cantidad
+        // no tiene campo: se cambia con (−)/(+) en el renglón de la lista.
         '<div class="campo"><label for="art-categoria">Pasillo</label>' +
         '<select id="art-categoria" name="categoria">' + opcionesCategoria(inicial.categoria) + "</select></div>" +
+        '<div class="fila-campos">' +
+        '<div class="campo"><label for="art-unidad">Unidad</label>' +
+        '<select id="art-unidad" name="unidad">' + opcionesUnidad(inicial.unidad) + "</select></div>" +
         '<div class="campo"><label for="art-precio">Precio unitario</label>' +
         '<input id="art-precio" name="precio" type="text" inputmode="decimal" placeholder="Opcional" value="' + esc(inicial.precio) + '"></div>' +
         "</div>" +
         '<div class="campo"><label for="art-notas">Notas</label>' +
-        '<input id="art-notas" name="notas" type="text" maxlength="200" placeholder="Opcional (marca, tamaño…)" value="' + esc(inicial.notas) + '"></div>' +
+        '<textarea id="art-notas" name="notas" rows="3" maxlength="200" placeholder="Opcional (marca, tamaño…)">' + esc(inicial.notas) + "</textarea></div>" +
         '<p class="error-formulario oculto" data-error role="alert"></p>' +
         '<div class="fila-botones">' +
         (a
@@ -693,7 +723,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     function valores() {
       return {
         nombre: form.nombre.value.replace(/\s+/g, " ").trim(),
-        cantidad: form.cantidad.value.trim(),
+        cantidad: inicial.cantidad, // sin campo en el formulario: se conserva (o viene del campo rápido)
         unidad: form.unidad.value,
         categoria: form.categoria.value,
         precio: form.precio.value.trim(),
@@ -716,6 +746,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     function guardar() {
       var v = valores();
       if (!v.nombre) return mostrarError("Escribe el nombre del artículo.");
+      if (!v.categoria) return mostrarError("Elige el pasillo del artículo.");
       var cantidad = _numeroDeCampo(v.cantidad);
       if (cantidad === null) cantidad = 1;
       if (!(cantidad > 0) || cantidad > 9999) return mostrarError("La cantidad debe ser un número mayor que 0.");
@@ -761,13 +792,186 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     }
   }
 
+
+  // ===== Pasillos: renombrar, crear y eliminar (solo vacíos) =====
+
+  // Cada cambio se guarda al instante, como el editor de unidades y precios (no hay botón
+  // Guardar). Todo va en UNA escritura multi-ruta sobre listas/{id}/info (escrituraCategorias).
+  function escribirPasillos(nuevas, orden) {
+    var cambios = escrituraCategorias(info, nuevas, orden);
+    var multi = {};
+    Object.keys(cambios).forEach(function (ruta) {
+      multi["listas/" + listaId + "/info/" + ruta] = cambios[ruta];
+    });
+    return actualizarMultiple(multi);
+  }
+
+  function abrirPasillos() {
+    if (gestorPasillos || !info.nombre) return;
+    var modal = abrirModal(
+      "<h3>Pasillos</h3>" +
+        '<p class="texto-suave">Cambia el nombre, crea pasillos nuevos o elimina los que estén vacíos. ' +
+        "Los cambios se guardan al momento y los ven todos los miembros de la lista.</p>" +
+        '<ul class="lista-pasillos" data-lista-pasillos></ul>' +
+        '<form class="fila-campos fila-nuevo-pasillo" data-form-pasillo novalidate autocomplete="off">' +
+        '<div class="campo"><label for="pasillo-nuevo">Nuevo pasillo</label>' +
+        '<input id="pasillo-nuevo" name="nombre" type="text" maxlength="' + LARGO_MAX_CATEGORIA + '" placeholder="Ej. Mascotas"></div>' +
+        '<button type="submit" class="btn btn-secundario">' + icono("plus", 18) + "<span>Agregar</span></button>" +
+        "</form>" +
+        '<p class="error-formulario oculto" data-error role="alert"></p>' +
+        // Los avisos van DENTRO de la hoja (no como toast): los toasts quedan debajo de los
+        // modales por diseño y el Deshacer de un pasillo eliminado no se podría tocar.
+        '<div class="aviso-pasillos oculto" data-aviso role="status"><span data-aviso-texto></span>' +
+        '<button type="button" class="btn-texto" data-deshacer-pasillo>Deshacer</button></div>' +
+        '<div class="fila-botones"><button type="button" class="btn" data-cerrar>Listo</button></div>',
+      function () { gestorPasillos = null; }
+    );
+    var listaEl = modal.elemento.querySelector("[data-lista-pasillos]");
+    var formNuevo = modal.elemento.querySelector("[data-form-pasillo]");
+    var errorEl = modal.elemento.querySelector("[data-error]");
+    var avisoEl = modal.elemento.querySelector("[data-aviso]");
+    var deshacerPasillo = null; // qué hace el botón Deshacer del aviso (solo tras eliminar)
+
+    function mostrarError(texto) {
+      errorEl.textContent = texto;
+      errorEl.classList.toggle("oculto", !texto);
+    }
+
+    function avisar(texto, deshacer) {
+      deshacerPasillo = deshacer || null;
+      avisoEl.querySelector("[data-aviso-texto]").textContent = texto;
+      avisoEl.querySelector("[data-deshacer-pasillo]").classList.toggle("oculto", !deshacer);
+      avisoEl.classList.remove("oculto");
+    }
+
+    function repintar() {
+      var cats = categoriasLista();
+      var conteo = contarPorCategoria(articulos, cats);
+      listaEl.innerHTML = ordenCategoriasEfectivo(info.ordenCategorias, cats)
+        .map(function (id) {
+          var n = conteo[id] || 0;
+          var porque = id === CATEGORIA_DEFECTO ? "Especiales es el pasillo de respaldo y no se puede eliminar"
+            : n ? "No se puede eliminar: tiene " + n + (n === 1 ? " artículo" : " artículos") : "Eliminar pasillo";
+          return (
+            '<li class="fila-pasillo">' +
+            '<span class="baldosa-pasillo ' + esc(clasePasillo(id)) + '" aria-hidden="true">' + icono(iconoPasillo(id), 18) + "</span>" +
+            '<input type="text" class="campo-pasillo" data-pasillo="' + esc(id) + '" maxlength="' + LARGO_MAX_CATEGORIA + '" value="' + esc(cats[id]) + '" ' +
+            'aria-label="' + esc("Nombre del pasillo " + cats[id]) + '">' +
+            '<span class="cuenta-pasillo">' + n + "</span>" +
+            '<button type="button" class="btn-accion-icono btn-accion-peligro" data-quitar-pasillo="' + esc(id) + '"' +
+            (id === CATEGORIA_DEFECTO || n ? " disabled" : "") +
+            ' aria-label="' + esc(porque + " (" + cats[id] + ")") + '" title="' + esc(porque) + '">' + icono("trash-2", 18) + "</button>" +
+            "</li>"
+          );
+        })
+        .join("");
+    }
+
+    gestorPasillos = { elemento: modal.elemento, repintar: repintar };
+    repintar();
+
+    function renombrar(campo) {
+      var id = campo.dataset.pasillo;
+      var cats = categoriasLista();
+      if (!cats[id]) return;
+      var v = validarNombreCategoria(campo.value, cats, id);
+      if (!v.ok) {
+        mostrarError(v.error);
+        campo.value = cats[id];
+        return;
+      }
+      mostrarError("");
+      if (v.nombre === cats[id]) {
+        campo.value = v.nombre;
+        return;
+      }
+      var nuevas = Object.assign({}, cats);
+      nuevas[id] = v.nombre;
+      escribirPasillos(nuevas, info.ordenCategorias)
+        .then(function () { avisar("Pasillo renombrado ✓"); })
+        .catch(fallo("No se pudo renombrar el pasillo"));
+    }
+
+    function crear() {
+      var cats = categoriasLista();
+      var v = validarNombreCategoria(formNuevo.nombre.value, cats, null);
+      if (!v.ok) return mostrarError(v.error);
+      mostrarError("");
+      var id = idNuevaCategoria(cats);
+      var nuevas = Object.assign({}, cats);
+      nuevas[id] = v.nombre;
+      var orden = ordenCategoriasEfectivo(info.ordenCategorias, cats).concat(id);
+      formNuevo.nombre.value = "";
+      escribirPasillos(nuevas, orden)
+        .then(function () { avisar("Pasillo «" + v.nombre + "» creado ✓"); })
+        .catch(fallo("No se pudo crear el pasillo"));
+    }
+
+    function quitar(id) {
+      var cats = categoriasLista();
+      if (!cats[id] || id === CATEGORIA_DEFECTO) return;
+      // Se revisa de nuevo con lo más reciente: otro miembro pudo agregar algo a este pasillo.
+      if ((contarPorCategoria(articulos, cats)[id] || 0) > 0) {
+        mostrarError("Ese pasillo ya tiene artículos: muévelos a otro pasillo para poder eliminarlo.");
+        return;
+      }
+      mostrarError("");
+      var nombre = cats[id];
+      var ordenAntes = ordenCategoriasEfectivo(info.ordenCategorias, cats);
+      var nuevas = Object.assign({}, cats);
+      delete nuevas[id];
+      escribirPasillos(nuevas, ordenAntes.filter(function (x) { return x !== id; }))
+        .then(function () {
+          avisar("Pasillo «" + nombre + "» eliminado", function () {
+            var actuales = categoriasLista();
+            if (actuales[id]) return;
+            var restauradas = Object.assign({}, actuales);
+            restauradas[id] = nombre;
+            var orden = ordenCategoriasEfectivo(info.ordenCategorias, actuales);
+            orden.splice(Math.min(ordenAntes.indexOf(id), orden.length), 0, id);
+            escribirPasillos(restauradas, orden)
+              .then(function () { avisar("Pasillo «" + nombre + "» restaurado ✓"); })
+              .catch(fallo("No se pudo deshacer"));
+          });
+        })
+        .catch(fallo("No se pudo eliminar el pasillo"));
+    }
+
+    listaEl.addEventListener("change", function (ev) {
+      if (ev.target.matches("[data-pasillo]")) renombrar(ev.target);
+    });
+    listaEl.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter" && ev.target.matches("[data-pasillo]")) {
+        ev.preventDefault();
+        ev.target.blur(); // el cambio de foco dispara "change" y guarda
+      }
+    });
+    listaEl.addEventListener("click", function (ev) {
+      var b = ev.target.closest("[data-quitar-pasillo]");
+      if (b && !b.disabled) quitar(b.dataset.quitarPasillo);
+    });
+    avisoEl.querySelector("[data-deshacer-pasillo]").addEventListener("click", function () {
+      if (deshacerPasillo) deshacerPasillo();
+    });
+    formNuevo.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      crear();
+    });
+    modal.elemento.querySelector("[data-cerrar]").addEventListener("click", function () {
+      var pendiente = formNuevo.nombre.value.trim();
+      if (pendiente) crear(); // "Listo" con un nombre escrito y sin agregar: no se pierde
+      modal.cerrar("manual");
+    });
+  }
+
   // ===== Importar desde una nota =====
 
   function abrirImportar() {
     var modal = abrirModal(
       "<h3>Importar desde una nota</h3>" +
         '<p class="texto-suave">Pega tu lista. Cada renglón con el nombre de un pasillo (Frutas, Verduras, ' +
-        "Abarrotes…) abre esa sección, y cada renglón con viñeta (<code>* Plátanos</code>) es un artículo. " +
+        "Abarrotes…, o uno que tú hayas creado) abre esa sección, y cada renglón con viñeta (<code>* Plátanos</code>) " +
+        "o que empiece con tabulador es un artículo. " +
         "Todo entra <strong>marcado</strong> (no hace falta); después desmarca lo que necesites comprar.</p>" +
         '<div class="campo"><label for="texto-importar">Tu lista</label>' +
         '<textarea id="texto-importar" rows="8" maxlength="30000" placeholder="Frutas&#10;* Plátanos&#10;* Mangos"></textarea></div>' +
@@ -785,8 +989,9 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     var porAgregar = [];
 
     function actualizarPrevia() {
-      var r = parsearNotaImportada(area.value);
-      var s = separarRepetidos(r.articulos, articulos);
+      var cats = categoriasLista();
+      var r = parsearNotaImportada(area.value, cats);
+      var s = separarRepetidos(r.articulos, articulos, cats);
       porAgregar = s.aAgregar;
       botonImportar.disabled = porAgregar.length === 0;
       botonImportar.textContent = porAgregar.length ? "Importar " + porAgregar.length : "Importar";
@@ -801,10 +1006,10 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       var html = '<div class="tarjeta vista-previa-importar"><p><strong>' + porAgregar.length + "</strong> artículos nuevos";
       if (s.repetidos.length) html += " · " + s.repetidos.length + " ya estaban en la lista (no se duplican)";
       html += "</p>";
-      var cats = ordenCategoriasEfectivo(info.ordenCategorias).filter(function (c) { return porCategoria[c]; });
-      if (cats.length) {
-        html += '<ul class="resumen-importar">' + cats.map(function (c) {
-          return "<li>" + esc(CATEGORIAS_NOMBRES[c]) + ": " + porCategoria[c] + "</li>";
+      var ids = ordenCategoriasEfectivo(info.ordenCategorias, cats).filter(function (c) { return porCategoria[c]; });
+      if (ids.length) {
+        html += '<ul class="resumen-importar">' + ids.map(function (c) {
+          return "<li>" + esc(cats[c]) + ": " + porCategoria[c] + "</li>";
         }).join("") + "</ul>";
       }
       if (r.ignorados.length) {
@@ -953,6 +1158,21 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         .catch(fallo("No se pudo regresar el artículo"));
       return;
     }
+    var favoritoBtn = ev.target.closest("[data-favorito]");
+    if (favoritoBtn) {
+      var idF = favoritoBtn.dataset.favorito;
+      var af = articulos[idF];
+      if (af) {
+        // true se guarda; quitarlo borra el campo (null), no escribe false.
+        escribirArticulo(idF, { favorito: af.favorito ? null : true }, null).catch(fallo("No se pudo cambiar el favorito"));
+      }
+      return;
+    }
+    var agregarPasilloBtn = ev.target.closest("[data-agregar-pasillo]");
+    if (agregarPasilloBtn) {
+      abrirFormularioArticulo(null, { categoria: agregarPasilloBtn.dataset.agregarPasillo });
+      return;
+    }
     var cantidadBtn = ev.target.closest("[data-cantidad]");
     if (cantidadBtn) {
       if (!cantidadBtn.disabled) cambiarCantidad(cantidadBtn.dataset.id, Number(cantidadBtn.dataset.cantidad));
@@ -972,6 +1192,11 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     if (accion) {
       if (accion.dataset.accion === "marcar-todo") marcarTodo();
       if (accion.dataset.accion === "importar") abrirImportar();
+      if (accion.dataset.accion === "pasillos") abrirPasillos();
+      if (accion.dataset.accion === "solo-favoritos") {
+        soloFavoritos = !soloFavoritos;
+        pintar();
+      }
       if (accion.dataset.accion === "actividad" && coordinacion) coordinacion.abrirActividad();
       if (accion.dataset.accion === "editar-precios") {
         modoPrecios = true;
@@ -1019,13 +1244,26 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       "<p><strong>Unidades y precios</strong> (en <em>Toda la lista</em>): pon la unidad y el precio por unidad " +
       "de todos tus artículos de corrido; usa <em>Solo sin precio</em> para ver lo que falta. Puedes tener abierta " +
       "la página de tu tienda en otra pestaña para copiar los precios.</p>" +
-      "<p>Toca el nombre de un artículo para cambiar cantidad, unidad, pasillo, precio o notas, o para eliminarlo.</p>"
+      "<p>Toca el nombre de un artículo para cambiar cantidad, unidad, pasillo, precio o notas, o para eliminarlo.</p>" +
+      "<p>En <em>Toda la lista</em> → <em>Pasillos</em> puedes cambiar el nombre de un pasillo, crear los tuyos y " +
+      "eliminar los que estén vacíos.</p>"
   );
 
   // ===== Datos en tiempo real =====
 
+  // Si la hoja "Pasillos" está abierta, su lista se repinta con cada cambio (los míos y los de
+  // otros miembros), salvo que se esté escribiendo el nombre de un pasillo: repintar le
+  // quitaría el foco y lo escrito. El campo "Nuevo pasillo" está fuera de la lista y no se toca.
+  function repintarGestorPasillos() {
+    if (!gestorPasillos) return;
+    var activo = document.activeElement;
+    if (activo && activo.matches && activo.matches("[data-pasillo]") && gestorPasillos.elemento.contains(activo)) return;
+    gestorPasillos.repintar();
+  }
+
   detenerInfo = escuchar(refNodo("listas/" + listaId + "/info"), function (valor) {
     info = valor || {};
+    repintarGestorPasillos();
     if (info.nombre) {
       sinAcceso = false;
       clearTimeout(temporizadorSinAcceso);
@@ -1040,6 +1278,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
 
   detenerArticulos = escuchar(refArticulos, function (valor) {
     articulos = valor || {};
+    repintarGestorPasillos();
     pintar();
   });
   // escuchar() entrega {} tanto "aún no llega" como "no existe / sin permiso": si en 6 s no

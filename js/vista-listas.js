@@ -13,13 +13,16 @@ function crearLista(usuario, nombre, copia) {
     refNodo("listas/" + copia.origen + "/articulos").once("value"),
     refNodo("listas/" + copia.origen + "/info").once("value")
   ]).then(function (r) {
-    var articulos = copiarArticulos(r[0].val() || {}, { todosMarcados: copia.todosMarcados !== false, uid: usuario.uid });
-    var orden = ordenCategoriasEfectivo((r[1].val() || {}).ordenCategorias);
-    return _escribirListaNueva(usuario, nombre, articulos, orden);
+    var infoOrigen = r[1].val() || {};
+    var categorias = categoriasEfectivas(infoOrigen.categorias);
+    var articulos = copiarArticulos(r[0].val() || {}, { todosMarcados: copia.todosMarcados !== false, uid: usuario.uid, categorias: categorias });
+    var orden = ordenCategoriasEfectivo(infoOrigen.ordenCategorias, categorias);
+    // Solo se copian los pasillos si la lista origen los personalizó; si no, la nueva usa los 14 por defecto.
+    return _escribirListaNueva(usuario, nombre, articulos, orden, infoOrigen.categorias ? categorias : null);
   });
 }
 
-function _escribirListaNueva(usuario, nombre, articulos, orden) {
+function _escribirListaNueva(usuario, nombre, articulos, orden, categorias) {
   var id = _idNuevaLista();
   var cambios = {};
   cambios["listas/" + id + "/info"] = {
@@ -29,6 +32,13 @@ function _escribirListaNueva(usuario, nombre, articulos, orden) {
     creada: firebase.database.ServerValue.TIMESTAMP,
     ordenCategorias: orden || CATEGORIAS_ORDEN_DEFECTO
   };
+  if (categorias) {
+    // Dentro del mismo objeto `info`: una escritura multi-ruta no admite rutas que se traslapen.
+    cambios["listas/" + id + "/info"].categorias = {};
+    Object.keys(categorias).forEach(function (cid) {
+      cambios["listas/" + id + "/info"].categorias[cid] = { nombre: categorias[cid] };
+    });
+  }
   (articulos || []).forEach(function (a) {
     a.creado = firebase.database.ServerValue.TIMESTAMP;
     cambios["listas/" + id + "/articulos/" + refNodo("listas/" + id + "/articulos").push().key] = a;

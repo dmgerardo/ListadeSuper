@@ -119,6 +119,16 @@ reglas = {
                         f"data.exists() && newData.exists() && ({MI_ROL} === 'dueno' || {MI_ROL} === 'editor') && newData.child('creadaPor').val() === data.child('creadaPor').val()",
                     )),
                     ".validate": "newData.hasChildren(['nombre', 'moneda', 'creadaPor']) && newData.child('nombre').isString() && newData.child('nombre').val().length > 0 && newData.child('nombre').val().length <= 80",
+                    # Pasillos personalizados de la lista (renombrar/crear/eliminar). Si no existe el
+                    # nodo rigen los 14 por defecto. Que un pasillo esté vacío para eliminarlo lo
+                    # verifica el cliente: una regla no puede consultar los artículos por pasillo.
+                    "categorias": {
+                        "$cat": {
+                            ".validate": "$cat.matches(/^[a-z0-9_]{1,40}$/) && newData.hasChildren(['nombre'])",
+                            "nombre": {".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"},
+                            "$otro": {".validate": False},
+                        },
+                    },
                 },
                 "miembros": {
                     "$uid": {
@@ -173,6 +183,7 @@ reglas = {
                         "precio": {".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 10000000"},
                         "notas": {".validate": "newData.isString() && newData.val().length <= 200"},
                         "comprado": {".validate": "newData.isBoolean()"},
+                        "favorito": {".validate": "newData.isBoolean()"},
                         "compradoPor": {".validate": "newData.isString() && newData.val().length <= 128"},
                         "agregadoPor": {".validate": "newData.isString() && newData.val().length <= 128"},
                         "creado": {".validate": "newData.isNumber()"},

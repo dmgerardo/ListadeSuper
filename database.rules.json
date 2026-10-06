@@ -46,7 +46,18 @@
         ".write": "auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && !newData.exists() && data.child('miembros/' + auth.uid + '/rol').val() === 'dueno'",
         "info": {
           ".write": "auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && ((!data.exists() && newData.child('creadaPor').val() === auth.uid && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || ((root.child('roles/' + auth.uid + '/rol').val() === 'admin' || root.child('roles/' + auth.uid + '/rol').val() === 'participante') && root.child('roles/' + auth.uid + '/activo').val() === true))) || (data.exists() && newData.exists() && (root.child('listas/' + $listaId + '/miembros/' + auth.uid + '/rol').val() === 'dueno' || root.child('listas/' + $listaId + '/miembros/' + auth.uid + '/rol').val() === 'editor') && newData.child('creadaPor').val() === data.child('creadaPor').val()))",
-          ".validate": "newData.hasChildren(['nombre', 'moneda', 'creadaPor']) && newData.child('nombre').isString() && newData.child('nombre').val().length > 0 && newData.child('nombre').val().length <= 80"
+          ".validate": "newData.hasChildren(['nombre', 'moneda', 'creadaPor']) && newData.child('nombre').isString() && newData.child('nombre').val().length > 0 && newData.child('nombre').val().length <= 80",
+          "categorias": {
+            "$cat": {
+              ".validate": "$cat.matches(/^[a-z0-9_]{1,40}$/) && newData.hasChildren(['nombre'])",
+              "nombre": {
+                ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+              },
+              "$otro": {
+                ".validate": false
+              }
+            }
+          }
         },
         "miembros": {
           "$uid": {
@@ -98,6 +109,9 @@
               ".validate": "newData.isString() && newData.val().length <= 200"
             },
             "comprado": {
+              ".validate": "newData.isBoolean()"
+            },
+            "favorito": {
               ".validate": "newData.isBoolean()"
             },
             "compradoPor": {
