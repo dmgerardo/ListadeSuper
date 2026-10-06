@@ -1,0 +1,27 @@
+name: Deploy a Firebase Hosting en push a main
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  despliegue:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publicar reglas de Realtime Database
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only database
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LISTADESUPER }}
+          PROJECT_ID: pilo-compras
+
+      - name: Deploy a Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"
+          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_LISTADESUPER }}"
+          channelId: live
+          projectId: pilo-compras

@@ -1,0 +1,48 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "usuarios": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "listasDeUsuario": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$listaId": {
+          ".write": "auth != null && (auth.uid === $uid || root.child('listas/' + $listaId + '/miembros/' + auth.uid + '/rol').val() === 'dueno')"
+        }
+      }
+    },
+    "listas": {
+      "$listaId": {
+        ".read": "auth != null && data.child('miembros/' + auth.uid).exists()",
+        "info": {
+          ".write": "auth != null && ((!data.exists() && newData.child('creadaPor').val() === auth.uid) || root.child('listas/' + $listaId + '/miembros/' + auth.uid + '/rol').val() === 'dueno')",
+          ".validate": "newData.hasChildren(['nombre', 'moneda', 'creadaPor']) && newData.child('nombre').isString() && newData.child('nombre').val().length <= 80"
+        },
+        "miembros": {
+          "$uid": {
+            ".write": "auth != null && ((auth.uid === $uid && !data.exists() && newData.child('rol').val() === 'dueno' && !root.child('listas/' + $listaId + '/info').exists()) || (auth.uid === $uid && !data.exists() && newData.child('rol').val() === 'editor' && root.child('invitaciones/' + newData.child('codigo').val() + '/listaId').val() === $listaId && root.child('invitaciones/' + newData.child('codigo').val() + '/expira').val() > now) || (auth.uid === $uid && !newData.exists() && data.child('rol').val() !== 'dueno') || (root.child('listas/' + $listaId + '/miembros/' + auth.uid + '/rol').val() === 'dueno' && auth.uid !== $uid))"
+          }
+        },
+        "articulos": {
+          ".write": "auth != null && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists()",
+          "$articuloId": {
+            ".validate": "!newData.exists() || (newData.child('nombre').isString() && newData.child('nombre').val().length > 0 && newData.child('nombre').val().length <= 120)"
+          }
+        },
+        "catalogo": { ".write": "auth != null && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists()" },
+        "plantillas": { ".write": "auth != null && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists()" }
+      }
+    },
+    "invitaciones": {
+      "$codigo": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((!data.exists() && newData.child('creadaPor').val() === auth.uid && root.child('listas/' + newData.child('listaId').val() + '/miembros/' + auth.uid + '/rol').val() === 'dueno') || (data.exists() && !newData.exists() && root.child('listas/' + data.child('listaId').val() + '/miembros/' + auth.uid + '/rol').val() === 'dueno'))"
+      }
+    }
+  }
+}

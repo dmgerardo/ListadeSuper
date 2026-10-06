@@ -1,0 +1,9 @@
+.DS_Store
+Thumbs.db
+*.log
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+ui-debug.log
+database-debug.log
+node_modules/
