@@ -1,72 +1,90 @@
 # Próxima sesión
 
-## Qué se hizo (Fase 0 + Fase 1, 2026-10-05)
+> Si eres una sesión nueva de Claude Code (incluida una corriendo en la nube): lee primero
+> `AGENTS.md` completo (invariantes técnicas), y este archivo completo antes de tocar
+> código. `PROYECTO_INICIAL.md` es el documento de producto original — ya no es la fuente
+> de verdad técnica (esa es `AGENTS.md`), pero sigue teniendo el detalle completo de cada
+> fase y el modelo de datos.
 
-- Esqueleto completo: `css/estilos.css` (tokens + componentes), `js/tema.js`,
-  `js/iconos.js`, `js/render-utils.js`, `js/db.js`, `js/catalogo-categorias.js`,
-  `manifest.json`, `sw.js`, íconos placeholder generados por script, hook de versión
-  (`.githooks/pre-commit` + `scripts/bump-version.py`), workflow de deploy
-  (`.github/workflows/firebase-hosting-merge.yml`), docs (`AGENTS.md`, `CLAUDE.md`,
-  `README.md`, `SEGURIDAD.md`, `historial.html`, este archivo).
-- Login con Google (`js/auth.js`: popup con fallback a redirect) + `usuarios/{uid}`.
-- "Mis listas" (`js/vista-listas.js` + `index.html`): crear, abrir, renombrar.
-- `lista.html`: pantalla mínima que confirma que la lista existe y que el usuario tiene
-  acceso (lee `listas/{id}/info`); los artículos llegan en la Fase 2.
-- `database.rules.json`: copiadas tal cual de `PROYECTO_INICIAL.md` §5.
-- Repo conectado a `dmgerardo/ListadeSuper` (ya existía en GitHub).
+## Estado actual: Fase 0 y Fase 1 — CERRADAS Y VERIFICADAS (2026-10-06)
 
-## Qué falta / qué NO se probó (decirlo explícito, no inventar que ya se hizo)
+- Sitio desplegado y funcionando: **https://pilo-compras.web.app**
+- Proyecto de Firebase: `pilo-compras` (Authentication → Google habilitado, Realtime
+  Database en `us-central1`, reglas publicadas).
+- **Login con Google probado por el usuario en el sitio real — funciona.** (No se probó
+  específicamente en iPhone/Safari/PWA instalada; si alguien lo prueba ahí, documentarlo
+  aquí.)
+- Deploy automático (`.github/workflows/firebase-hosting-merge.yml`) corriendo en verde en
+  cada push a `main` (Hosting + reglas de Realtime Database).
+- Secreto de GitHub `FIREBASE_SERVICE_ACCOUNT_LISTADESUPER` configurado.
+- `js/firebase-config.js` tiene el `firebaseConfig` real completo.
 
-- **Firebase**: Project ID real `pilo-compras`. `js/firebase-config.js` ya tiene el
-  `firebaseConfig` real completo (apiKey, authDomain, databaseURL, storageBucket,
-  messagingSenderId, appId) pegado por el usuario. `.firebaserc` y el workflow ya apuntan a
-  `pilo-compras`.
-  - **Se probó en el navegador** (servidor estático local, no el deploy real): el config
-    carga bien y el botón de login sí intenta abrir el popup hacia
-    `pilo-compras.firebaseapp.com` (correcto). Pero Firebase responde
-    **`auth/api-key-not-valid`**. El formato de la key es correcto (39 caracteres, prefijo
-    `AIzaSy`), no parece typo. Hipótesis más probable: restricciones de la API key en
-    **Google Cloud Console → APIs y servicios → Credenciales** (por HTTP referrer, que
-    quizá no incluye el dominio real de Hosting todavía, o porque "Identity Toolkit API" no
-    está habilitada / la key está restringida a otras APIs). **Pendiente que el usuario lo
-    revise ahí.**
-  - **Pendiente de confirmar por el usuario**: si ya habilitó Authentication → Google en la
-    consola de Firebase (se le dieron los pasos; no hay confirmación en esta sesión de que
-    ya lo hizo).
-  - Falta el secreto de GitHub `FIREBASE_SERVICE_ACCOUNT_LISTADESUPER` — **todavía no
-    existe** (`gh secret list` vacío al cerrar esta sesión) — sin él el workflow de deploy
-    va a fallar en rojo al hacer merge a `main`. Se le dieron al usuario los pasos exactos
-    (CLI `firebase init hosting:github` o cuenta de servicio manual).
-- Se encontró y corrigió un bug real al probar el botón de login: `ev.currentTarget` es
-  `null` dentro de un `.catch()` asíncrono, causaba un `TypeError` no capturado al fallar
-  el login (ver AGENTS.md §6). Ya corregido en `index.html` y verificado en el navegador.
-- El entorno de esta sesión **no tenía Node.js, npm ni Firebase CLI instalados** → no se
-  pudo: correr `node --check` sobre los `.js`, correr pruebas de lógica pura, usar el
-  Emulador de Firebase para probar `database.rules.json`, ni correr Playwright. Antes de
-  dar la Fase 1 por cerrada, instalar esas herramientas y correr esas pruebas (ver §6 y §10
-  del documento base).
-- **Login en iPhone real** (Safari y PWA instalada): no probado, requiere un dispositivo
-  físico y la app ya desplegada con un dominio autorizado.
-- Verificar la versión del SDK compat de Firebase (`10.14.1`) contra la más reciente
-  disponible — no se verificó en línea esta sesión.
-- Verificar en el navegador, ya desplegado, que la CSP de `firebase.json` no bloquee nada
-  del flujo de login con Google (consola sin violaciones).
-- Deploy automático: falta confirmar que el workflow corre en verde en el primer push a
-  `main` (requiere los secretos de Firebase ya mencionados).
+## Qué incluye el código ahora mismo
+
+- Esqueleto (Fase 0): `css/estilos.css`, `js/tema.js`, `js/iconos.js`,
+  `js/render-utils.js`, `js/db.js`, `js/catalogo-categorias.js`, `manifest.json`, `sw.js`,
+  íconos placeholder, hook de versión, workflow de deploy.
+- Login + perfil (`js/auth.js`) y "Mis listas" (`js/vista-listas.js`): crear, abrir,
+  renombrar. Arranque de cada página en `js/pagina-inicio.js` / `js/pagina-lista.js` (no
+  inline — ver bitácora de errores en AGENTS.md §6, importante leerla).
+- `lista.html`: solo confirma que la lista existe y que el usuario tiene acceso; **los
+  artículos todavía no existen** — eso es la Fase 2.
+- `database.rules.json`: reglas de `PROYECTO_INICIAL.md` §5, ya publicadas y en uso real,
+  pero **nunca probadas con el Emulador de Firebase** (ver pendientes abajo).
+
+## Bugs reales encontrados y corregidos esta sesión (contexto útil, no repetir)
+
+Ver el detalle completo en `AGENTS.md` §6 ("Errores a evitar"). Resumen:
+
+1. CSP bloqueaba `<script>` inline → pantalla en blanco en producción. No se detectaba en
+   local porque ahí no hay cabeceras CSP (solo las manda Firebase Hosting).
+2. CSP bloqueaba `style="..."` inline también (`style-src`).
+3. La regla de `Cache-Control: no-cache` no cubría la ruta raíz `/` (solo `*.html`),
+   causando que quedara cacheada una versión vieja del HTML en algunos navegadores.
+
+**Lección para la próxima vez que se toque algo visual o de arranque**: probar siempre
+contra el sitio ya desplegado (`https://pilo-compras.web.app`), no solo con un servidor
+estático local — la CSP y las cabeceras de caché solo existen en el deploy real.
+
+## Pendiente real (no inventar que ya se hizo)
+
+- **`node --check` y pruebas de lógica pura en Node**: no corrieron nunca, en ninguna
+  sesión hasta ahora — verificar si el entorno actual tiene Node.js instalado; si no, no se
+  puede hacer todavía.
+- **`database.rules.json` nunca se probó con el Emulador de Firebase ni el Rules
+  Playground** — las reglas están en producción protegiendo datos reales sin esa
+  verificación. Alta prioridad antes de construir Fase 4 (invitaciones/miembros), que es
+  donde las reglas son más complejas.
+- **Playwright**: no se corrió nunca.
+- **Login en iPhone real** (Safari y PWA instalada): no probado.
+- Versión del SDK compat de Firebase (`10.14.1`): no se verificó contra la más reciente
+  disponible.
+- Íconos de `icons/*.png`: son un placeholder generado por script (carrito simple), no un
+  diseño final.
 
 ## Decisiones ya tomadas con el usuario (no volver a preguntar)
 
 - Nombre visible de la app: **ListadeCompras** (el repo de GitHub sigue llamándose
   `ListadeSuper`, no se renombra).
-- Región de Realtime Database: `us-central1`.
+- Proyecto de Firebase: `pilo-compras`, región de Realtime Database `us-central1`.
 - Favoritos y plantillas: compartidos **por lista**, no personales.
 - Moneda inicial: MXN.
 - Invitaciones: caducan en 7 días, un código se considera de un solo uso.
+- Flujo de trabajo confirmado por el usuario: **cada cambio se commitea, se pushea y se
+  mergea a `main` directamente** (sin esperar aprobación de PR) — así se trabajó a partir
+  de la Fase 1. Seguir así salvo que el usuario diga lo contrario.
 
 ## Decisiones abiertas para la Fase 2 (preguntar cuando toque)
 
-- Lista de categorías/pasillos por defecto y su orden: se puso un placeholder razonable en
+- Lista de categorías/pasillos por defecto y su orden: hay un placeholder razonable en
   `js/catalogo-categorias.js` (frutas y verduras, panadería, lácteos, carnes y pescados,
   abarrotes, enlatados, bebidas, limpieza, cuidado personal, bebés, mascotas, farmacia,
   otros) — confirmar con el usuario o ajustar antes de construir la vista de artículos.
 - Unidades permitidas: placeholder en el mismo archivo (`UNIDADES_DEFECTO`).
+
+## Siguiente paso sugerido
+
+Fase 2 (ver tabla de fases en `PROYECTO_INICIAL.md` §10): artículos — agregar rápido,
+cantidad/unidad/categoría/precio, agrupación por pasillo, marcar comprado, quitar, totales,
+Deshacer. Construye sobre `lista.html` / `js/pagina-lista.js`, que hoy solo muestra un
+mensaje de "próximamente".
