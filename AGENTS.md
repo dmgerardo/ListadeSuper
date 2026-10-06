@@ -29,6 +29,10 @@ contra la última versión disponible en esta sesión — revisar si se actualiz
   Acciones masivas = una sola escritura multi-ruta con `actualizarMultiple`.
 - **Escapar todo lo que se interpola en HTML** con `esc()`; URLs externas con `urlSegura()`.
   Nada de `innerHTML` con datos sin escapar.
+- **Ningún `style="..."` inline tampoco** — la CSP (`style-src` sin `'unsafe-inline'`) lo
+  bloquea igual que los `<script>` inline. Usar una clase de `css/estilos.css` (ver
+  `.fila-tarjeta`, `.enlace-con-icono`, etc. como ejemplo de las utilidades ya creadas para
+  esto).
 - **`escuchar()` nunca entrega `null`** (entrega `{}`).
 - **Ningún `<script>` inline** en los HTML (todo en archivos `.js`) — lo exige la CSP de
   `firebase.json` (aplicada, no Report-Only).
@@ -83,7 +87,9 @@ confirmado — se usará en Fase 4).
   required`. La prueba local con `http.server` no lo detecta porque ahí no hay cabeceras
   CSP (esas solo las manda Firebase Hosting) — **probar siempre contra el sitio
   desplegado, no solo en local, antes de dar algo por terminado**. Corregido moviendo esa
-  lógica a `js/pagina-inicio.js` y `js/pagina-lista.js`.
+  lógica a `js/pagina-inicio.js` y `js/pagina-lista.js`. Mismo tipo de problema con
+  `style="..."` inline (CSP `style-src`) — ver invariante en §2, ya corregido en el mismo
+  despliegue.
 - **`Event.currentTarget` es `null` fuera del despacho síncrono del evento.** Guardarlo en
   una variable local antes de usarlo dentro de un `.then()`/`.catch()` asíncrono (pasó en
   el botón de login: `ev.currentTarget.disabled = false` dentro del `.catch()` tiraba

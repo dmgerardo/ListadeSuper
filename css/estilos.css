@@ -290,3 +290,9 @@ select:focus-visible, textarea:focus-visible {
 .texto-suave { color: var(--color-texto-suave); }
 .oculto { display: none !important; }
 .vacio { text-align: center; color: var(--color-texto-suave); padding: 32px var(--espacio); }
+
+/* Reemplazan style="" inline (bloqueado por la CSP: style-src sin 'unsafe-inline'). */
+.btn-accion-icono-chico { width: 28px; height: 28px; }
+.enlace-con-icono { display: inline-flex; align-items: center; gap: 4px; }
+.fila-tarjeta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fila-tarjeta-enlace { flex: 1; text-decoration: none; color: inherit; display: block; }

@@ -42,7 +42,7 @@
     cuenta.className = "menu-cuenta pastilla";
     cuenta.innerHTML =
       '<img class="foto-cuenta" src="' + urlSegura(usuario.photoURL || "") + '" alt="" width="20" height="20">' +
-      '<button type="button" class="btn-accion-icono" id="boton-salir" aria-label="Cerrar sesión" title="Cerrar sesión" style="width:28px;height:28px">' +
+      '<button type="button" class="btn-accion-icono btn-accion-icono-chico" id="boton-salir" aria-label="Cerrar sesión" title="Cerrar sesión">' +
       icono("log-out", 16) +
       "</button>";
     barra.insertBefore(cuenta, barra.firstChild);

@@ -19,7 +19,7 @@
   function mostrarLista(usuario) {
     app.innerHTML =
       '<div class="contenedor">' +
-      '<a href="index.html" class="btn-texto" style="display:inline-flex;align-items:center;gap:4px">' +
+      '<a href="index.html" class="btn-texto enlace-con-icono">' +
       icono("chevron-left", 18) + "<span>Mis listas</span></a>" +
       '<h1 data-nombre-lista>Cargando…</h1>' +
       '<div class="tarjeta">' +

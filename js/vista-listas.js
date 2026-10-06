@@ -108,9 +108,9 @@ function montarVistaListas(contenedor, usuario) {
         .map(function (id) {
           var info = infoPorLista[id];
           return (
-            '<div class="tarjeta" style="display:flex;align-items:center;justify-content:space-between;gap:8px">' +
+            '<div class="tarjeta fila-tarjeta">' +
             '<a href="lista.html?lista=' + encodeURIComponent(id) + '" data-abrir="' + esc(id) + '" ' +
-            'style="flex:1;text-decoration:none;color:inherit;display:block">' +
+            'class="fila-tarjeta-enlace">' +
             "<strong>" + esc(info.nombre || "(sin nombre)") + "</strong>" +
             "</a>" +
             '<button type="button" class="btn-accion-icono" data-renombrar="' + esc(id) + '" ' +
