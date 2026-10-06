@@ -76,7 +76,7 @@
           }
         },
         "articulos": {
-          ".write": "(auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists())",
+          ".write": "(((auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists())) || (auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && !data.parent().child('info').exists() && newData.parent().child('info/creadaPor').val() === auth.uid && newData.parent().child('miembros/' + auth.uid + '/rol').val() === 'dueno'))",
           "$articuloId": {
             ".validate": "!newData.exists() || newData.hasChildren(['nombre', 'categoria', 'comprado'])",
             "nombre": {

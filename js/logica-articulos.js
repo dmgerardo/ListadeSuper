@@ -300,3 +300,34 @@ function contarSinPrecio(articulos) {
     return a && typeof a === "object" && a.nombre && typeof a.precio !== "number";
   }).length;
 }
+
+// copiarArticulos(articulos, opciones) → [artículo] para una lista NUEVA (duplicar).
+// Copia solo los datos del artículo (nombre, cantidad, unidad, pasillo, precio, notas), en
+// orden alfabético por pasillo como se ven. opciones.todosMarcados: true = todo entra
+// marcado ("ya lo tengo", como al importar); false = conserva marcado/desmarcado de la
+// original. opciones.uid: quien duplica (queda como agregadoPor / compradoPor).
+// No copia autoría, actividad ni plantillaId (la copia es una lista nueva y propia).
+function copiarArticulos(articulos, opciones) {
+  opciones = opciones || {};
+  var resultado = [];
+  agruparArticulos(articulos, null).forEach(function (g) {
+    g.articulos.forEach(function (a) {
+      var marcado = opciones.todosMarcados ? true : !!a.comprado;
+      var copia = {
+        nombre: String(a.nombre).slice(0, LARGO_MAX_NOMBRE),
+        cantidad: typeof a.cantidad === "number" && a.cantidad > 0 && a.cantidad <= 9999 ? a.cantidad : 1,
+        unidad: typeof a.unidad === "string" && a.unidad ? a.unidad.slice(0, 20) : "pieza",
+        categoria: g.categoria,
+        comprado: marcado
+      };
+      if (typeof a.precio === "number" && a.precio >= 0) copia.precio = a.precio;
+      if (typeof a.notas === "string" && a.notas) copia.notas = a.notas.slice(0, 200);
+      if (opciones.uid) {
+        copia.agregadoPor = opciones.uid;
+        if (marcado) copia.compradoPor = opciones.uid;
+      }
+      resultado.push(copia);
+    });
+  });
+  return resultado;
+}

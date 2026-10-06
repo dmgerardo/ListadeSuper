@@ -254,3 +254,23 @@ test("roles: rolEfectivo y ADMIN_RAIZ igual al de las reglas", () => {
   assert.equal(ef({}, "x@y.com", true).sinNodo, true, "sin nodo: aún no se sabe (no mostrar 'desactivada')");
   assert.equal(ef({ rol: "jefe", activo: true }, "x@y.com", true).rol, "invitado");
 });
+
+test("copiarArticulos: datos del artículo, sin autoría ajena; todo marcado o igual que la original", () => {
+  const orig = {
+    "-1": { nombre: "Leche", categoria: "refris", comprado: false, cantidad: 2, unidad: "l", precio: 28.5, notas: "light", agregadoPor: "ana", compradoPor: "ana", plantillaId: "p1", creado: 5 },
+    "-2": { nombre: "Pinol", categoria: "limpieza", comprado: true, compradoPor: "ana" },
+    "-3": { nombre: "Raro", categoria: "inexistente", comprado: false },
+    "-4": { nombre: "", categoria: "refris" },
+  };
+  const t = plano(L.copiarArticulos(orig, { todosMarcados: true, uid: "yo" }));
+  assert.equal(t.length, 3, "se ignoran los que no tienen nombre");
+  const leche = t.find((a) => a.nombre === "Leche");
+  assert.deepEqual(leche, { nombre: "Leche", cantidad: 2, unidad: "l", categoria: "refris", comprado: true, precio: 28.5, notas: "light", agregadoPor: "yo", compradoPor: "yo" });
+  assert.equal(t.find((a) => a.nombre === "Raro").categoria, "especiales", "categoría desconocida → Especiales");
+  assert.deepEqual(t.find((a) => a.nombre === "Pinol"), { nombre: "Pinol", cantidad: 1, unidad: "pieza", categoria: "limpieza", comprado: true, agregadoPor: "yo", compradoPor: "yo" });
+  const igual = plano(L.copiarArticulos(orig, { todosMarcados: false, uid: "yo" }));
+  assert.equal(igual.find((a) => a.nombre === "Leche").comprado, false, "conserva desmarcado");
+  assert.equal(igual.find((a) => a.nombre === "Leche").compradoPor, undefined);
+  assert.equal(igual.find((a) => a.nombre === "Pinol").comprado, true, "conserva marcado");
+  assert.deepEqual(plano(L.copiarArticulos({}, {})), []);
+});

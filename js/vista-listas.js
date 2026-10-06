@@ -4,7 +4,22 @@ function _idNuevaLista() {
   return refNodo("listas").push().key;
 }
 
-function crearLista(usuario, nombre) {
+// crearLista(usuario, nombre, copia): copia opcional = { origen: listaId, todosMarcados } para
+// DUPLICAR una lista: se crean la lista y todos sus artículos en UNA escritura multi-ruta
+// (las reglas lo permiten solo al crear tu propia lista). Resuelve con { id, copiados }.
+function crearLista(usuario, nombre, copia) {
+  if (!copia || !copia.origen) return _escribirListaNueva(usuario, nombre, null, null);
+  return Promise.all([
+    refNodo("listas/" + copia.origen + "/articulos").once("value"),
+    refNodo("listas/" + copia.origen + "/info").once("value")
+  ]).then(function (r) {
+    var articulos = copiarArticulos(r[0].val() || {}, { todosMarcados: copia.todosMarcados !== false, uid: usuario.uid });
+    var orden = ordenCategoriasEfectivo((r[1].val() || {}).ordenCategorias);
+    return _escribirListaNueva(usuario, nombre, articulos, orden);
+  });
+}
+
+function _escribirListaNueva(usuario, nombre, articulos, orden) {
   var id = _idNuevaLista();
   var cambios = {};
   cambios["listas/" + id + "/info"] = {
@@ -12,8 +27,12 @@ function crearLista(usuario, nombre) {
     moneda: "MXN",
     creadaPor: usuario.uid,
     creada: firebase.database.ServerValue.TIMESTAMP,
-    ordenCategorias: CATEGORIAS_ORDEN_DEFECTO
+    ordenCategorias: orden || CATEGORIAS_ORDEN_DEFECTO
   };
+  (articulos || []).forEach(function (a) {
+    a.creado = firebase.database.ServerValue.TIMESTAMP;
+    cambios["listas/" + id + "/articulos/" + refNodo("listas/" + id + "/articulos").push().key] = a;
+  });
   cambios["listas/" + id + "/miembros/" + usuario.uid] = {
     rol: "dueno",
     nombre: usuario.displayName || "",
@@ -24,7 +43,7 @@ function crearLista(usuario, nombre) {
   // Escritura multi-ruta: info + miembros/{uid} dueño se crean juntos para cumplir la
   // regla de database.rules.json que exige que "la lista no exista todavía".
   return actualizarMultiple(cambios).then(function () {
-    return id;
+    return { id: id, copiados: (articulos || []).length };
   });
 }
 
@@ -45,7 +64,11 @@ function renombrarLista(listaId, nuevoNombre) {
   return actualizar(refNodo("listas/" + listaId + "/info"), { nombre: nuevoNombre });
 }
 
-function _formularioLista(valoresIniciales, alGuardar, alEliminar) {
+// _formularioLista(valoresIniciales, alGuardar, alEliminar, listasParaCopiar):
+// listasParaCopiar = [{ id, nombre }] (solo al crear): permite duplicar una lista existente.
+// alGuardar(nombre, copia) con copia = { origen, todosMarcados } o null.
+function _formularioLista(valoresIniciales, alGuardar, alEliminar, listasParaCopiar) {
+  var conCopia = !valoresIniciales && listasParaCopiar && listasParaCopiar.length;
   var modal = abrirModal(
     '<h3>' + (valoresIniciales ? "Renombrar lista" : "Nueva lista") + "</h3>" +
       '<form data-form-lista>' +
@@ -54,6 +77,23 @@ function _formularioLista(valoresIniciales, alGuardar, alEliminar) {
       '<input id="campo-nombre-lista" name="nombre" type="text" maxlength="80" required ' +
       'value="' + esc(valoresIniciales ? valoresIniciales.nombre : "") + '" placeholder="Ej. Súper de la semana">' +
       "</div>" +
+      (conCopia
+        ? '<div class="campo"><label for="campo-origen">Copiar artículos de</label>' +
+          '<select id="campo-origen">' +
+          '<option value="">Ninguna (lista vacía)</option>' +
+          listasParaCopiar.map(function (l) {
+            return '<option value="' + esc(l.id) + '">' + esc(l.nombre) + "</option>";
+          }).join("") +
+          "</select></div>" +
+          '<div class="campo oculto" data-campo-estado>' +
+          '<label for="campo-estado-copia">Los artículos copiados entran</label>' +
+          '<select id="campo-estado-copia">' +
+          '<option value="marcados">Todos marcados (ya los tengo)</option>' +
+          '<option value="igual">Igual que en la original</option>' +
+          "</select>" +
+          '<p class="texto-suave nota-campo">Se copian nombre, cantidad, unidad, pasillo, precio y notas. ' +
+          "Los miembros no: la copia es solo tuya.</p></div>"
+        : "") +
       '<div class="fila-botones">' +
       (alEliminar
         ? '<button type="button" class="btn-accion-icono btn-accion-peligro" data-eliminar-lista aria-label="Eliminar lista" title="Eliminar lista">' +
@@ -72,10 +112,26 @@ function _formularioLista(valoresIniciales, alGuardar, alEliminar) {
   );
   var form = modal.elemento.querySelector("[data-form-lista]");
   var campoNombre = modal.elemento.querySelector("#campo-nombre-lista");
+  var campoOrigen = modal.elemento.querySelector("#campo-origen");
+  var campoEstado = modal.elemento.querySelector("#campo-estado-copia");
   var valorOriginal = valoresIniciales ? valoresIniciales.nombre : "";
+  var nombreSugerido = "";
 
   function hayCambios() {
-    return campoNombre.value.trim() !== valorOriginal;
+    return campoNombre.value.trim() !== valorOriginal || !!(campoOrigen && campoOrigen.value);
+  }
+
+  if (campoOrigen) {
+    campoOrigen.addEventListener("change", function () {
+      modal.elemento.querySelector("[data-campo-estado]").classList.toggle("oculto", !campoOrigen.value);
+      // Si el nombre está vacío (o sigue siendo la sugerencia anterior), se propone "X (copia)".
+      var actual = campoNombre.value.trim();
+      if (!actual || actual === nombreSugerido) {
+        var elegida = campoOrigen.options[campoOrigen.selectedIndex];
+        nombreSugerido = campoOrigen.value ? (elegida.textContent + " (copia)").slice(0, 80) : "";
+        campoNombre.value = nombreSugerido;
+      }
+    });
   }
 
   modal.elemento.querySelector("[data-cancelar]").addEventListener("click", function () {
@@ -96,7 +152,10 @@ function _formularioLista(valoresIniciales, alGuardar, alEliminar) {
   function enviar() {
     var nombre = campoNombre.value.trim();
     if (!nombre) return;
-    alGuardar(nombre);
+    var copia = campoOrigen && campoOrigen.value
+      ? { origen: campoOrigen.value, todosMarcados: campoEstado.value !== "igual" }
+      : null;
+    alGuardar(nombre, copia);
     modal.cerrar();
   }
 }
@@ -235,15 +294,20 @@ function montarVistaListas(contenedor, usuario) {
 
   function montarBotonNuevaLista() {
     montarAccionPrincipal("plus", "Nueva lista", function () {
-      _formularioLista(null, function (nombre) {
-        crearLista(usuario, nombre)
-          .then(function () {
-            mostrarToast("Lista creada");
+      var paraCopiar = Object.keys(infoPorLista)
+        .filter(function (id) { return infoPorLista[id] && infoPorLista[id].nombre; })
+        .map(function (id) { return { id: id, nombre: infoPorLista[id].nombre }; })
+        .sort(compararPorNombre);
+      _formularioLista(null, function (nombre, copia) {
+        crearLista(usuario, nombre, copia)
+          .then(function (r) {
+            mostrarToast(copia ? "Lista creada con " + r.copiados + (r.copiados === 1 ? " artículo" : " artículos") : "Lista creada");
           })
-          .catch(function () {
+          .catch(function (e) {
+            console.error(e);
             mostrarToast("No se pudo crear la lista");
           });
-      });
+      }, null, paraCopiar);
     });
   }
 

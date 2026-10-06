@@ -154,7 +154,16 @@ reglas = {
                     },
                 },
                 "articulos": {
-                    ".write": MIEMBRO_ACTIVO,
+                    ".write": o(
+                        MIEMBRO_ACTIVO,
+                        # Duplicar una lista: sus artículos se escriben en la MISMA escritura que
+                        # crea la lista (info + yo como dueño), cuando aún no soy miembro en la
+                        # base. Solo si la lista no existía y la estoy creando yo.
+                        y("auth != null", ACTIVO,
+                          "!data.parent().child('info').exists()",
+                          "newData.parent().child('info/creadaPor').val() === auth.uid",
+                          "newData.parent().child('miembros/' + auth.uid + '/rol').val() === 'dueno'"),
+                    ),
                     "$articuloId": {
                         ".validate": "!newData.exists() || newData.hasChildren(['nombre', 'categoria', 'comprado'])",
                         "nombre": {".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"},

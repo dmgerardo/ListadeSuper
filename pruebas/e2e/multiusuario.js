@@ -276,12 +276,100 @@ async function invitacionYCoordinacion(browser, viewport, etiqueta) {
   await ctx.close();
 }
 
+async function duplicar(browser) {
+  const { ctx, errores, page } = await contexto(browser, { width: 390, height: 860 });
+  await page.goto(BASE + "/index.html");
+  await pausa(page, 400);
+  await page.click(".btn-accion-principal");
+  assert.equal(await page.$("#campo-origen"), null, "sin listas todavía: no hay 'Copiar de'");
+  await page.fill("#campo-nombre-lista", "Súper");
+  await page.click('[data-form-lista] button[type="submit"]');
+  await pausa(page);
+  const enlace = await page.getAttribute(".fila-tarjeta-enlace", "href");
+  const origen = new URL(BASE + "/" + enlace).searchParams.get("lista");
+  await page.goto(BASE + "/" + enlace);
+  await pausa(page, 500);
+  for (const n of ["Leche", "Pan", "Café"]) {
+    await page.fill("[data-campo-rapido]", n);
+    await page.press("[data-campo-rapido]", "Enter");
+    await pausa(page, 150);
+  }
+  await page.click('[aria-label="Marcar Pan como comprado"]');
+  const arts = await leerBD(page, "listas/" + origen + "/articulos");
+  const idLeche = Object.keys(arts).find((k) => arts[k].nombre === "Leche");
+  await escribirComoOtro(page, {
+    ["listas/" + origen + "/articulos/" + idLeche + "/precio"]: 28.5,
+    ["listas/" + origen + "/articulos/" + idLeche + "/categoria"]: "refris",
+    ["listas/" + origen + "/info/ordenCategorias"]: ["refris", "especiales"],
+    ["listas/" + origen + "/miembros/u2"]: { rol: "editor", nombre: "Ana López" },
+  });
+  await page.goto(BASE + "/index.html");
+  await pausa(page, 500);
+
+  // 1) Duplicar con "todos marcados" (por defecto): nombre sugerido "Súper (copia)".
+  await page.click(".btn-accion-principal");
+  await page.selectOption("#campo-origen", origen);
+  assert.equal(await page.inputValue("#campo-nombre-lista"), "Súper (copia)", "nombre sugerido");
+  assert.equal(await page.isVisible("#campo-estado-copia"), true);
+  await pausa(page, 400); // fin de la animación de entrada
+  await page.screenshot({ path: path.join(CAPTURAS, "duplicar-390.png") });
+  // El botón Guardar no queda tapado por la barra inferior.
+  const tapado = await page.evaluate(() => {
+    const b = document.querySelector('[data-form-lista] button[type="submit"]').getBoundingClientRect();
+    const arriba = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+    return !arriba || !arriba.closest('[data-form-lista] button[type="submit"]');
+  });
+  assert.equal(tapado, false, "Guardar visible y tocable");
+  // Con un origen elegido, tocar fuera pregunta (hay cambios).
+  await page.mouse.click(5, 5);
+  await pausa(page);
+  assert.equal(await page.$$eval(".fondo-modal", (m) => m.length), 2);
+  await page.click('[data-accion="seguir"]');
+  const antes = await page.evaluate(() => window.__mockBD.escrituras.length);
+  await page.click('[data-form-lista] button[type="submit"]');
+  await pausa(page, 500);
+  assert.equal(await ultimoToast(page), "Lista creada con 3 artículos");
+  const esc = await page.evaluate((n) => window.__mockBD.escrituras.slice(n), antes);
+  assert.equal(esc.length, 1, "duplicar = UNA escritura (lista + artículos)");
+  const indice = await leerBD(page, "listasDeUsuario/u1");
+  const copia1 = Object.keys(indice).find((id) => id !== origen);
+  const l1 = await leerBD(page, "listas/" + copia1);
+  assert.equal(l1.info.nombre, "Súper (copia)");
+  // Firebase guarda los arreglos como objetos con llaves 0, 1, 2…: se lee de las dos formas.
+  assert.deepEqual(Object.values(l1.info.ordenCategorias).slice(0, 2), ["refris", "especiales"], "copia el orden de pasillos");
+  assert.deepEqual(Object.keys(l1.miembros), ["u1"], "los miembros no se copian");
+  assert.equal(l1.actividad, undefined, "la actividad no se copia");
+  const a1 = Object.values(l1.articulos);
+  assert.equal(a1.length, 3);
+  assert.ok(a1.every((a) => a.comprado === true && a.compradoPor === "u1" && a.agregadoPor === "u1"), "todos marcados, a mi nombre");
+  const leche1 = a1.find((a) => a.nombre === "Leche");
+  assert.deepEqual([leche1.precio, leche1.categoria, leche1.unidad, leche1.cantidad], [28.5, "refris", "pieza", 1]);
+
+  // 2) Duplicar "igual que en la original": conserva marcado / desmarcado.
+  await page.click(".btn-accion-principal");
+  await page.selectOption("#campo-origen", origen);
+  await page.fill("#campo-nombre-lista", "Súper tal cual");
+  await page.selectOption("#campo-estado-copia", "igual");
+  await page.click('[data-form-lista] button[type="submit"]');
+  await pausa(page, 500);
+  const indice2 = await leerBD(page, "listasDeUsuario/u1");
+  const copia2 = Object.keys(indice2).find((id) => id !== origen && id !== copia1);
+  const a2 = Object.values((await leerBD(page, "listas/" + copia2 + "/articulos")));
+  assert.deepEqual(a2.filter((a) => a.comprado).map((a) => a.nombre), ["Pan"], "solo Pan sigue marcado");
+  assert.equal(a2.find((a) => a.nombre === "Leche").compradoPor, undefined);
+  console.log("  [duplicar] nombre sugerido, 1 escritura, datos y orden copiados, sin miembros/actividad, dos modos de estado");
+  assert.deepEqual(errores, []);
+  await ctx.close();
+}
+
 (async () => {
   const browser = await playwright.chromium.launch();
   let fallo = null;
   try {
     console.log("Roles y administración");
     await roles(browser);
+    console.log("Duplicar lista");
+    await duplicar(browser);
     for (const [w, et] of [[390, "390"], [320, "320"], [1280, "1280"]]) {
       console.log("Invitación y coordinación " + et + " px");
       await invitacionYCoordinacion(browser, { width: w, height: 860 }, et);

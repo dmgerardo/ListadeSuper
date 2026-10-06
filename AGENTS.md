@@ -54,6 +54,11 @@ en npm es `12.19.0`, ver §7).
   escritura multi-ruta (`escribirArticulo` en `vista-articulos.js`). Es temporal: el cliente
   borra lo de > 24 h al abrir la lista (las reglas permiten borrar solo lo de > 23 h).
 - **Cambios de cantidad (+/−) con `transaction`**, para no perder toques simultáneos.
+- **Duplicar una lista** (Nueva lista → "Copiar artículos de"): lista + artículos en UNA escritura
+  (`crearLista(usuario, nombre, { origen, todosMarcados })`, `copiarArticulos` en
+  `logica-articulos.js`). Copia nombre/cantidad/unidad/pasillo/precio/notas y el orden de
+  pasillos; NO miembros, actividad ni autoría. Las reglas de `articulos` lo permiten solo al
+  crear tu propia lista en la misma escritura (casos en `pruebas/reglas`).
 - **Toda regla nueva o cambiada lleva su caso en `pruebas/reglas/reglas.test.js`** y se
   corre `npm test` ahí antes de publicar. `agregadoPor`/`compradoPor` NO se atan a
   `auth.uid` a propósito (el Deshacer de un borrado restaura la autoría de otro miembro).
@@ -101,7 +106,7 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `js/iconos.js` | `ICONOS_LUCIDE` (SVG oficiales de `lucide-static` 1.52.0, ver cabecera), `icono()`, `iconoTexto()` |
 | `js/render-utils.js` | `esc`, `urlSegura`, `formatoMoneda`, `hoyLocalISO`, `abrirModal`, `confirmarCierreConCambios`, `mostrarToast` y la barra inferior flotante: `barraInferior`, `ranuraBarra`, `vaciarRanura`, `montarPestanas`, `montarAccionPrincipal`, `montarBotonAyuda`, `montarMenuCuenta` |
 | `js/catalogo-categorias.js` | Las 14 categorías/pasillos del usuario (confirmadas en Fase 2, orden de su nota de iPhone; "Especiales" es el cajón, no hay "Otros"), su ícono (`CATEGORIAS_ICONOS`), alias para importar y las 11 unidades |
-| `js/logica-articulos.js` | Lógica pura, probada en Node: `normalizarNombre`, `interpretarTextoRapido` ("2 kg tomate"), `ordenCategoriasEfectivo`, `agruparArticulos`, `totalesLista`, `parsearNotaImportada`, `separarRepetidos`, `buscarPorNombre`, `textoCantidad`, `pasoDeUnidad`, `siguienteCantidad`, `etiquetaUnidad` (contador −/+), `compararPorNombre` (orden alfabético), `cantidadParaUnidad`, `contarSinPrecio` (editor de precios) |
+| `js/logica-articulos.js` | Lógica pura, probada en Node: `normalizarNombre`, `interpretarTextoRapido` ("2 kg tomate"), `ordenCategoriasEfectivo`, `agruparArticulos`, `totalesLista`, `parsearNotaImportada`, `separarRepetidos`, `buscarPorNombre`, `textoCantidad`, `pasoDeUnidad`, `siguienteCantidad`, `etiquetaUnidad` (contador −/+), `compararPorNombre` (orden alfabético), `cantidadParaUnidad`, `contarSinPrecio` (editor de precios), `copiarArticulos` (duplicar lista) |
 | `js/vista-articulos.js` | Pantalla de una lista: vistas "Por comprar"/"Toda la lista", campo rápido (busca + agrega), formulario agregar/editar/eliminar, marcar todo, importar nota, totales, Deshacer |
 | `js/vista-listas.js` | Pantalla "Mis listas": crear, abrir, renombrar, eliminar (dueño); avisos según rol |
 | `js/roles.js` | `ADMIN_RAIZ`, `rolEfectivo`, `asegurarRol`, `escucharRol`, `montarCuentaConRol` |
@@ -118,7 +123,7 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `pruebas/` | Pruebas: lógica en Node, reglas con el emulador, flujo con Playwright, contraste de tokens (`contraste.js`) — ver `pruebas/README.md` |
 | `scripts/generar-iconos.py` | Genera `icons/*.png` (placeholder) con los colores de los tokens. Requiere Pillow |
 | `historial.html` | Historial de versiones para usuarios |
-| `database.rules.json` | Reglas (GENERADAS, ver arriba). Probadas con el Emulador (`pruebas/reglas`, 31 casos): roles y admin raíz, crear lista por rol, desactivados, artículos, editores, invitaciones de un solo uso, eliminar lista, actividad y presencia |
+| `database.rules.json` | Reglas (GENERADAS, ver arriba). Probadas con el Emulador (`pruebas/reglas`, 34 casos): roles y admin raíz, crear lista por rol, desactivados, artículos, editores, invitaciones de un solo uso, eliminar lista, actividad y presencia |
 | `sw.js` | App shell cacheado por versión |
 
 ## 3b. Sistema visual "Mercado fresco" (Fase 2.1)

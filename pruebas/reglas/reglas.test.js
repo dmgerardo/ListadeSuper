@@ -286,6 +286,43 @@ test("invitado (sin autorizar) sí edita las listas a las que lo invitaron", asy
   await assertSucceeds(update(ref(bd("bob"), "listas/L1/articulos/a1"), { comprado: false, compradoPor: null }));
 });
 
+// ===== Duplicar una lista =====
+
+const listaNueva = (uid, id, articulos) => {
+  const c = {
+    ["listas/" + id + "/info"]: { nombre: "Copia", moneda: "MXN", creadaPor: uid, creada: 5 },
+    ["listas/" + id + "/miembros/" + uid]: { rol: "dueno", nombre: uid },
+    ["listasDeUsuario/" + uid + "/" + id]: true,
+  };
+  Object.entries(articulos).forEach(([k, v]) => (c["listas/" + id + "/articulos/" + k] = v));
+  return c;
+};
+
+test("duplicar: crear la lista con sus artículos en UNA escritura (participante)", async () => {
+  await assertSucceeds(update(ref(bd("carol")), listaNueva("carol", "Ld", { x1: articulo({ agregadoPor: "carol" }), x2: articulo({ nombre: "Leche", comprado: true, compradoPor: "carol" }) })));
+  assert.equal(Object.keys(await leerSinReglas("listas/Ld/articulos") || {}).length, 2);
+});
+
+test("duplicar: un invitado no puede (no crea listas); artículos inválidos rechazan todo", async () => {
+  await assertFails(update(ref(bd("bob")), listaNueva("bob", "Lb", { x1: articulo() })));
+  await assertFails(update(ref(bd("carol")), listaNueva("carol", "Le", { x1: articulo({ precio: "caro" }) })));
+  assert.equal(await leerSinReglas("listas/Le"), null, "atómico: no queda lista a medias");
+});
+
+test("duplicar: no sirve para meter artículos en una lista existente ajena", async () => {
+  // L1 existe (de alice): carol no es miembro; el permiso de 'lista nueva' no aplica.
+  await assertFails(update(ref(bd("carol")), {
+    "listas/L1/articulos/intruso": articulo({ agregadoPor: "carol" }),
+    "listas/L1/miembros/carol": { rol: "dueno" },
+  }));
+  // Ni en una lista nueva a nombre de otro.
+  await assertFails(update(ref(bd("carol")), {
+    "listas/Lx/info": { nombre: "X", moneda: "MXN", creadaPor: "alice", creada: 5 },
+    "listas/Lx/miembros/alice": { rol: "dueno" },
+    "listas/Lx/articulos/a": articulo(),
+  }));
+});
+
 // ===== Editores: todo menos eliminar la lista =====
 
 test("editor renombra la lista pero no cambia su autor ni la elimina", async () => {

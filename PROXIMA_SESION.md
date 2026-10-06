@@ -6,7 +6,10 @@
 > de verdad técnica (esa es `AGENTS.md`), pero sigue teniendo el detalle completo de cada
 > fase y el modelo de datos.
 
-## Estado actual: v18 en `main` (2026-10-06)
+## Estado actual: v19 en `main` (2026-10-06)
+
+- v19: duplicar una lista al crear una nueva ("Copiar artículos de", todos marcados o igual que
+  la original; sin miembros ni actividad). Ver `AGENTS.md` §2.
 
 - v18: "Marcaste hace poco" + Regresar en Por comprar; formularios protegidos contra cierre
   accidental (tocar fuera / Escape con cambios pregunta); (X) en la búsqueda.

@@ -1042,6 +1042,7 @@ code { font-size: 0.9em; background: var(--color-segmento); padding: 0 4px; bord
 .nombre-reciente { flex: 1; min-width: 0; color: var(--color-texto-suave); overflow-wrap: anywhere; }
 .casilla-hecha { background: var(--color-primario); border-color: var(--color-primario); color: var(--color-texto-sobre-primario); flex: none; }
 .fila-botones-confirmar { flex-wrap: wrap; }
+.nota-campo { font-size: 13px; margin: 6px 0 0; }
 
 /* ===== Utilidades ===== */
 .texto-suave { color: var(--color-texto-suave); }
