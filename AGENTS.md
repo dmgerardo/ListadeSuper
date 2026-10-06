@@ -90,6 +90,12 @@ confirmado — se usará en Fase 4).
   lógica a `js/pagina-inicio.js` y `js/pagina-lista.js`. Mismo tipo de problema con
   `style="..."` inline (CSP `style-src`) — ver invariante en §2, ya corregido en el mismo
   despliegue.
+- **La regla de `Cache-Control: no-cache` en `firebase.json` para `**/*.@(html)` NO cubre
+  la raíz `/`** (no termina en `.html`), así que el navegador puede cachear "/" con las
+  reglas de caché por defecto y servir un HTML viejo después de un deploy nuevo — pasó
+  justo después de corregir el bug de arriba: la pestaña mostraba otra vez el error de CSP
+  del script inline ya eliminado, porque sirvió una copia cacheada de `/`. Agregada una
+  regla de headers explícita para `"source": "/"` además de `**/*.@(html)`.
 - **`Event.currentTarget` es `null` fuera del despacho síncrono del evento.** Guardarlo en
   una variable local antes de usarlo dentro de un `.then()`/`.catch()` asíncrono (pasó en
   el botón de login: `ev.currentTarget.disabled = false` dentro del `.catch()` tiraba
