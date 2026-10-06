@@ -382,3 +382,13 @@ test("favoritos: soloFavoritos filtra, y duplicar conserva la estrella", () => {
   const copia = plano(L.copiarArticulos(art, {}));
   assert.deepEqual(copia.map((c) => [c.nombre, c.favorito]), [["Leche", true], ["Queso", undefined]]);
 });
+
+test("fotos.js: urlDeFotoValida acepta solo https y recorta espacios", () => {
+  const ctxF = vm.createContext({ URL });
+  vm.runInContext(fs.readFileSync(path.join(raiz, "js/fotos.js"), "utf8"), ctxF);
+  const v = (t) => vm.runInContext("urlDeFotoValida(" + JSON.stringify(t) + ")", ctxF);
+  assert.equal(v("  https://sitio.com/a b.jpg "), "https://sitio.com/a%20b.jpg");
+  for (const malo of ["http://sitio.com/a.jpg", "javascript:alert(1)", "data:image/png;base64,AAA", "sitio.com/a.jpg", "", null, "https://x.com/" + "a".repeat(1000)]) {
+    assert.equal(v(malo), null, String(malo).slice(0, 30));
+  }
+});

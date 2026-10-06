@@ -20,6 +20,17 @@
 
 ## Qué se hizo, por versión (más reciente primero)
 
+- **v22 — fotos de artículos** (`js/fotos.js`, `storage.rules`). **Requiere acción del usuario:**
+  1. Consola de Firebase → **Storage** → "Comenzar" (modo producción; misma región que la base si
+     la pide). El bucket que ya está en `js/firebase-config.js` es `pilo-compras.firebasestorage.app`.
+  2. Dar a la cuenta de servicio del deploy el rol **Administrador de Firebase Rules / Storage**
+     (IAM) para que el paso "Publicar reglas de Storage" del workflow funcione; mientras tanto ese
+     paso falla sin detener el deploy. Alternativa: pegar `storage.rules` a mano en la consola.
+  3. Sin Storage activado, "Elegir archivo" y "Pegar" muestran un error al subir; "Desde una URL"
+     funciona igual (no usa Storage).
+  Probado: pruebas de navegador con Storage SIMULADO (`pruebas/e2e/fotos.js`), reglas de la base
+  (38). **NO probado:** Storage real, ni `storage.rules` (no hay emulador de Storage en las
+  pruebas), ni el portapapeles en un iPhone real.
 - **v21 — pasillos en orden alfabético** (lista, índice, hoja Pasillos y desplegables). El orden manual
   (`info.ordenCategorias`) quedó sin uso.
 - **v20 — pasillos, agregar y favoritos** (pedidos del usuario; ver `AGENTS.md` §2):

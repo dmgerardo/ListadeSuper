@@ -172,6 +172,10 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       'data-alternar="' + esc(a.id) + '" aria-label="' + esc(etiquetaCasilla) + '" title="' + esc(etiquetaCasilla) + '">' +
       '<span class="casilla-circulo">' + icono("check", 18) + "</span>" +
       "</button>" +
+      (a.fotoUrl
+        ? '<button type="button" class="miniatura-fila" data-ver-foto="' + esc(a.id) + '" aria-label="' + esc("Ver la foto de " + a.nombre) + '" title="Ver la foto">' +
+          '<img src="' + esc(a.fotoUrl) + '" alt="" loading="lazy" decoding="async"></button>'
+        : "") +
       '<button type="button" class="cuerpo-articulo" data-editar="' + esc(a.id) + '" aria-label="Editar ' + esc(a.nombre) + '">' +
       '<span class="textos-articulo">' +
       '<span class="nombre-articulo">' + esc(a.nombre) + "</span>" +
@@ -545,6 +549,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     };
     if (typeof datos.precio === "number") articulo.precio = datos.precio;
     if (datos.notas) articulo.notas = datos.notas;
+    if (datos.fotoUrl) articulo.fotoUrl = datos.fotoUrl;
     if (articulo.comprado) articulo.compradoPor = usuario.uid;
     return refArticulo(id).set(articulo).then(function () {
       return id;
@@ -684,8 +689,13 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       unidad: a && a.unidad ? a.unidad : prefill.unidad || "pieza",
       categoria: a ? categoriaValida(a.categoria, categoriasLista()) : prefill.categoria && categoriasLista()[prefill.categoria] ? prefill.categoria : "",
       precio: a && typeof a.precio === "number" ? String(a.precio) : "",
-      notas: a && a.notas ? a.notas : ""
+      notas: a && a.notas ? a.notas : "",
+      fotoUrl: a && a.fotoUrl ? a.fotoUrl : ""
     };
+    var fotoActual = inicial.fotoUrl; // URL elegida en este formulario ("" = sin foto)
+    var subidas = []; // rutas de Storage subidas en este formulario (para descartar las que no queden)
+    var rutaVigente = null; // la subida que corresponde a fotoActual, si fue subida aquí
+    var guardado = false;
     var modal = abrirModal(
       "<h3>" + (a ? "Editar artículo" : "Nuevo artículo") + "</h3>" +
         '<form data-form-articulo novalidate>' +
@@ -703,6 +713,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         "</div>" +
         '<div class="campo"><label for="art-notas">Notas</label>' +
         '<textarea id="art-notas" name="notas" rows="3" maxlength="200" placeholder="Opcional (marca, tamaño…)">' + esc(inicial.notas) + "</textarea></div>" +
+        '<div class="campo"><span class="etiqueta-campo">Foto</span><div class="zona-foto" data-zona-foto></div></div>' +
         '<p class="error-formulario oculto" data-error role="alert"></p>' +
         '<div class="fila-botones">' +
         (a
@@ -713,12 +724,59 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         '<button type="submit" class="btn-accion-icono btn-accion-primario" aria-label="Guardar" title="Guardar">' + icono("save", 20) + "</button>" +
         "</div>" +
         "</form>",
-      null,
+      // Al cerrar: lo subido a Storage en este formulario que no quedó guardado se borra.
+      function () {
+        subidas.forEach(function (ruta) {
+          if (!guardado || ruta !== rutaVigente) borrarFotoSubida(ruta);
+        });
+      },
       // Tocar fuera / Escape con cambios: preguntar en vez de perder lo capturado.
       { hayCambios: function () { return hayCambios(); }, guardar: function () { guardar(); } }
     );
     var form = modal.elemento.querySelector("[data-form-articulo]");
     var errorEl = modal.elemento.querySelector("[data-error]");
+    var zonaFoto = modal.elemento.querySelector("[data-zona-foto]");
+
+    function pintarFoto() {
+      zonaFoto.innerHTML = fotoActual
+        ? '<button type="button" class="miniatura-foto" data-foto-ver aria-label="Ver la foto" title="Ver la foto">' +
+          '<img src="' + esc(fotoActual) + '" alt=""></button>' +
+          '<button type="button" class="btn-accion-icono" data-foto-cambiar aria-label="Cambiar la foto" title="Cambiar la foto">' + icono("image", 20) + "</button>" +
+          '<button type="button" class="btn-accion-icono btn-accion-peligro" data-foto-quitar aria-label="Quitar la foto" title="Quitar la foto">' + icono("trash-2", 20) + "</button>"
+        : '<button type="button" class="foto-agregar" data-foto-agregar aria-label="Agregar una foto" title="Agregar una foto">' + icono("plus", 24) + "</button>";
+    }
+    pintarFoto();
+
+    function elegirFoto() {
+      abrirSelectorFoto({
+        listaId: listaId,
+        uid: usuario.uid,
+        alElegir: function (foto) {
+          // La subida anterior hecha en ESTE formulario ya no hace falta.
+          if (rutaVigente) {
+            borrarFotoSubida(rutaVigente);
+            subidas = subidas.filter(function (r) { return r !== rutaVigente; });
+          }
+          rutaVigente = foto.ruta;
+          if (foto.ruta) subidas.push(foto.ruta);
+          fotoActual = foto.url;
+          pintarFoto();
+        }
+      });
+    }
+    zonaFoto.addEventListener("click", function (ev) {
+      if (ev.target.closest("[data-foto-agregar], [data-foto-cambiar]")) elegirFoto();
+      else if (ev.target.closest("[data-foto-ver]")) verFoto(fotoActual, inicial.nombre || form.nombre.value);
+      else if (ev.target.closest("[data-foto-quitar]")) {
+        if (rutaVigente) {
+          borrarFotoSubida(rutaVigente);
+          subidas = subidas.filter(function (r) { return r !== rutaVigente; });
+          rutaVigente = null;
+        }
+        fotoActual = "";
+        pintarFoto();
+      }
+    });
 
     function valores() {
       return {
@@ -727,7 +785,8 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         unidad: form.unidad.value,
         categoria: form.categoria.value,
         precio: form.precio.value.trim(),
-        notas: form.notas.value.trim()
+        notas: form.notas.value.trim(),
+        fotoUrl: fotoActual
       };
     }
 
@@ -755,7 +814,8 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       if (precio !== null) precio = Math.round(precio * 100) / 100;
 
       if (!a) {
-        crearArticulo({ nombre: v.nombre, cantidad: cantidad, unidad: v.unidad, categoria: v.categoria, precio: precio, notas: v.notas, comprado: false })
+        guardado = true;
+        crearArticulo({ nombre: v.nombre, cantidad: cantidad, unidad: v.unidad, categoria: v.categoria, precio: precio, notas: v.notas, fotoUrl: v.fotoUrl, comprado: false })
           .then(function () { mostrarToast("Guardado ✓"); })
           .catch(fallo("No se pudo guardar el artículo"));
         modal.cerrar("manual");
@@ -769,6 +829,8 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       if (v.categoria !== a.categoria) cambios.categoria = v.categoria;
       if (precio !== (typeof a.precio === "number" ? a.precio : null)) cambios.precio = precio;
       if ((v.notas || null) !== (a.notas || null)) cambios.notas = v.notas || null;
+      if ((v.fotoUrl || null) !== (a.fotoUrl || null)) cambios.fotoUrl = v.fotoUrl || null;
+      guardado = true;
       modal.cerrar("manual");
       if (!Object.keys(cambios).length) return;
       actualizar(refArticulo(idExistente), cambios)
@@ -1156,6 +1218,12 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       escribirArticulo(idR, { comprado: false, compradoPor: null }, "desmarco")
         .then(function () { mostrarToast((articulos[idR] || {}).nombre + " regresó a Por comprar"); })
         .catch(fallo("No se pudo regresar el artículo"));
+      return;
+    }
+    var fotoBtn = ev.target.closest("[data-ver-foto]");
+    if (fotoBtn) {
+      var af0 = articulos[fotoBtn.dataset.verFoto];
+      if (af0 && af0.fotoUrl) verFoto(af0.fotoUrl, af0.nombre);
       return;
     }
     var favoritoBtn = ev.target.closest("[data-favorito]");

@@ -332,6 +332,17 @@ test("favorito: booleano, lo cambia cualquier miembro y se quita con null; no-mi
   await assertFails(update(ref(bd("carol")), { "listas/L1/articulos/a1/favorito": true }));
 });
 
+test("fotoUrl: solo https (≤ 1000), la cambia un miembro y se quita con null; no-miembro no", async () => {
+  const r = "listas/L1/articulos/a1/fotoUrl";
+  await assertSucceeds(update(ref(bd("bob")), { [r]: "https://firebasestorage.googleapis.com/v0/b/x/o/f.jpg?alt=media&token=t" }));
+  await assertSucceeds(update(ref(bd("alice")), { [r]: null }));
+  await assertFails(update(ref(bd("bob")), { [r]: "http://sitio.com/a.jpg" }));
+  await assertFails(update(ref(bd("bob")), { [r]: "javascript:alert(1)" }));
+  await assertFails(update(ref(bd("bob")), { [r]: "https://x.com/" + "a".repeat(1000) }));
+  await assertFails(update(ref(bd("bob")), { [r]: 5 }));
+  await assertFails(update(ref(bd("carol")), { [r]: "https://x.com/a.jpg" }));
+});
+
 test("pasillos personalizados: editor y dueño renombran/crean/eliminan; no-miembro y desactivado no; validación", async () => {
   const base = "listas/L1/info/";
   // Primera personalización (bob = editor): categorias + orden en UNA escritura multi-ruta.

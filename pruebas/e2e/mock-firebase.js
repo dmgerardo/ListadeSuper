@@ -228,6 +228,30 @@
   window.firebase = {
     initializeApp: function () {},
     auth: Object.assign(function () { return auth; }, { GoogleAuthProvider: function () {} }),
-    database: Object.assign(function () { return bd; }, { ServerValue: { TIMESTAMP: TIMESTAMP } })
+    database: Object.assign(function () { return bd; }, { ServerValue: { TIMESTAMP: TIMESTAMP } }),
+    // Storage simulado: guarda lo subido en window.__mockStorage y devuelve una URL data: de
+    // la propia imagen (la CSP del servidor de pruebas permite data:).
+    storage: function () {
+      return {
+        ref: function (ruta) {
+          return {
+            put: function (blob, meta) {
+              return new Promise(function (ok, mal) {
+                if (window.__mockStorageFalla) return mal({ code: "storage/unauthorized" });
+                var lector = new FileReader();
+                lector.onload = function () {
+                  window.__mockStorage = window.__mockStorage || {};
+                  window.__mockStorage[ruta] = { tipo: (meta || {}).contentType, bytes: blob.size, url: lector.result };
+                  ok({});
+                };
+                lector.readAsDataURL(blob);
+              });
+            },
+            getDownloadURL: function () { return Promise.resolve(window.__mockStorage[ruta].url); },
+            delete: function () { delete (window.__mockStorage || {})[ruta]; return Promise.resolve(); }
+          };
+        }
+      };
+    }
   };
 })();

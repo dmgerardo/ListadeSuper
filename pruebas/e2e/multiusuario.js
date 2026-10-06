@@ -342,7 +342,7 @@ async function duplicar(browser) {
   const l1 = await leerBD(page, "listas/" + copia1);
   assert.equal(l1.info.nombre, "Súper (copia)");
   // Firebase guarda los arreglos como objetos con llaves 0, 1, 2…: se lee de las dos formas.
-  assert.deepEqual(Object.values(l1.info.ordenCategorias).slice(0, 2), ["refris", "especiales"], "copia el orden de pasillos");
+  assert.deepEqual(Object.values(l1.info.ordenCategorias).slice(0, 2), ["abarrotes", "botanas_semillas"], "la copia lleva los pasillos en orden alfabético (el orden manual ya no se usa)");
   assert.deepEqual(Object.keys(l1.miembros), ["u1"], "los miembros no se copian");
   assert.equal(l1.actividad, undefined, "la actividad no se copia");
   const a1 = Object.values(l1.articulos);

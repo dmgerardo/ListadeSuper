@@ -114,6 +114,9 @@
             "favorito": {
               ".validate": "newData.isBoolean()"
             },
+            "fotoUrl": {
+              ".validate": "newData.isString() && newData.val().matches(/^https:\\/\\/.*/) && newData.val().length <= 1000"
+            },
             "compradoPor": {
               ".validate": "newData.isString() && newData.val().length <= 128"
             },

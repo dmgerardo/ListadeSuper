@@ -184,6 +184,8 @@ reglas = {
                         "notas": {".validate": "newData.isString() && newData.val().length <= 200"},
                         "comprado": {".validate": "newData.isBoolean()"},
                         "favorito": {".validate": "newData.isBoolean()"},
+                        # Foto: URL https de Firebase Storage o de un sitio externo (ver js/fotos.js).
+                        "fotoUrl": {".validate": "newData.isString() && newData.val().matches(/^https:\\/\\/.*/) && newData.val().length <= 1000"},
                         "compradoPor": {".validate": "newData.isString() && newData.val().length <= 128"},
                         "agregadoPor": {".validate": "newData.isString() && newData.val().length <= 128"},
                         "creado": {".validate": "newData.isNumber()"},

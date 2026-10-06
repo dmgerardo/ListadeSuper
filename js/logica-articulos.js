@@ -417,6 +417,7 @@ function copiarArticulos(articulos, opciones) {
       if (typeof a.precio === "number" && a.precio >= 0) copia.precio = a.precio;
       if (typeof a.notas === "string" && a.notas) copia.notas = a.notas.slice(0, 200);
       if (a.favorito === true) copia.favorito = true;
+      if (typeof a.fotoUrl === "string" && a.fotoUrl) copia.fotoUrl = a.fotoUrl.slice(0, 1000); // misma URL: no se duplica el archivo
       if (opciones.uid) {
         copia.agregadoPor = opciones.uid;
         if (marcado) copia.compradoPor = opciones.uid;

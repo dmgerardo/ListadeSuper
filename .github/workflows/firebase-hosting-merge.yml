@@ -18,6 +18,17 @@ jobs:
           GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LISTADESUPER }}
           PROJECT_ID: pilo-compras
 
+      # Las reglas de Storage solo se pueden publicar cuando Storage ya está activado en la consola
+      # de Firebase; mientras no, este paso falla y NO debe detener el deploy del sitio.
+      - name: Publicar reglas de Storage
+        continue-on-error: true
+        uses: w9jds/firebase-action@master
+        with:
+          args: deploy --only storage
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LISTADESUPER }}
+          PROJECT_ID: pilo-compras
+
       - name: Deploy a Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:

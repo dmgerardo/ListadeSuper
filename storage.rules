@@ -1,0 +1,22 @@
+// Reglas de Firebase Storage (fotos de los artículos). Se publican con el workflow
+// (deploy --only storage) una vez que Storage está activado en la consola de Firebase.
+//
+// LÍMITE CONOCIDO: las reglas de Storage no pueden consultar Realtime Database, así que no
+// se puede exigir "ser miembro de esa lista". Se exige sesión, que el archivo lo suba su dueño
+// (el nombre empieza con su uid), que sea una imagen y que pese menos de 2 MB. Leer una foto
+// requiere sesión (además de conocer su URL, que lleva un token largo e impredecible).
+// Ver SEGURIDAD.md.
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /listas/{listaId}/fotos/{archivo} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && archivo.matches(request.auth.uid + '-.*\\.jpg')
+        && request.resource.contentType == 'image/jpeg'
+        && request.resource.size < 2 * 1024 * 1024;
+      // Solo quien la subió la borra (el cliente borra lo que subió y descartó).
+      allow delete: if request.auth != null && archivo.matches(request.auth.uid + '-.*');
+    }
+  }
+}

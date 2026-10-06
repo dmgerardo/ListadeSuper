@@ -1121,3 +1121,27 @@ code { font-size: 0.9em; background: var(--color-segmento); padding: 0 4px; bord
 .boton-filtro-favoritos[aria-pressed="true"] { background: var(--color-tinte-primario); border-radius: 999px; }
 .boton-filtro-favoritos[aria-pressed="true"] svg { fill: currentColor; }
 @media (max-width: 374px) { .btn-favorito { width: 34px; } }
+
+/* Fotos de los artículos. */
+.etiqueta-campo { display: block; font-weight: 600; margin-bottom: 4px; }
+.zona-foto { display: flex; align-items: center; gap: 8px; }
+.foto-agregar {
+  width: 72px;
+  height: 72px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px dashed var(--color-borde);
+  border-radius: var(--radio-chico);
+  background: transparent;
+  color: var(--color-texto-suave);
+  cursor: pointer;
+}
+.miniatura-foto { padding: 0; border: none; background: none; cursor: zoom-in; }
+.miniatura-foto img { display: block; width: 72px; height: 72px; object-fit: cover; border-radius: var(--radio-chico); }
+.opciones-foto { display: flex; flex-direction: column; gap: 10px; margin-bottom: var(--espacio); }
+.opciones-foto .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.foto-ampliada { display: block; max-width: 100%; max-height: 70vh; margin: 0 auto var(--espacio); border-radius: var(--radio-chico); }
+.miniatura-fila { flex: none; align-self: center; width: 40px; height: 40px; padding: 0; border: none; background: none; cursor: zoom-in; }
+.miniatura-fila img { display: block; width: 40px; height: 40px; object-fit: cover; border-radius: 10px; }
+@media (max-width: 374px) { .miniatura-fila, .miniatura-fila img { width: 34px; height: 34px; } }

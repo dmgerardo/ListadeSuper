@@ -51,3 +51,15 @@ base64url) con caducidad — se implementan en la Fase 4, todavía no existen en
 - Probar las reglas con el Emulador de Firebase.
 - Verificar la CSP en un despliegue real (consola del navegador sin violaciones).
 - Probar el login con Google en iPhone real (Safari y PWA instalada).
+
+## Fotos de artículos (Firebase Storage, v22)
+
+- Las reglas de Storage (`storage.rules`) **no pueden consultar Realtime Database**, así que no
+  verifican que quien sube o lee una foto sea miembro de esa lista. Exigen sesión, que el nombre
+  del archivo empiece con el uid de quien lo sube, que sea JPEG y que pese menos de 2 MB; borrar
+  solo lo puede quien la subió. Cualquier cuenta con sesión podría subir imágenes (≤ 2 MB) bajo
+  `listas/*/fotos/`. Mitigación futura: Firestore con membresía, o un backend que firme las subidas.
+- Las URL de descarga de Storage llevan un token largo e impredecible; quien tenga la URL ve la foto.
+- "Desde una URL" admite imágenes de cualquier sitio https: eso obliga a `img-src … https:` en la CSP
+  (el navegador pide la imagen a ese sitio, que ve la IP del usuario). Los scripts siguen cerrados.
+- No se suben metadatos EXIF: la foto se redibuja en un canvas y se guarda como JPEG nuevo.

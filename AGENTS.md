@@ -87,6 +87,17 @@ en npm es `12.19.0`, ver §7).
   unidad + precio, notas.
 - **Favorito**: `articulos/{id}/favorito: true` (se quita con `null`, no `false`); estrella en cada
   renglón y filtro "Favoritos" en memoria (vale en las dos vistas). Se copia al duplicar.
+- **Fotos de artículos** (v22, `js/fotos.js`): campo `articulos/{id}/fotoUrl` (https, ≤ 1000; regla
+  en el generador). Tres formas: archivo, portapapeles (API + evento `paste` + campo de respaldo)
+  y URL. Archivo/portapapeles se REDUCEN en el dispositivo (≤ 1280 px, JPEG .82) y se suben a
+  Storage en `listas/{listaId}/fotos/{uid}-….jpg`; la URL externa se guarda tal cual (se comprueba
+  que cargue). **Nunca se borran de Storage los archivos de artículos guardados** (el Deshacer y
+  "Duplicar lista" comparten la URL); solo se borra lo subido en un formulario que se descartó o
+  cuya foto se cambió antes de guardar. `storage.rules` NO puede verificar membresía a la lista
+  (Storage no lee Realtime Database): exige sesión, uid en el nombre, JPEG y < 2 MB (SEGURIDAD.md).
+  La CSP lleva `img-src 'self' data: blob: https:` (por las URL externas) y solo `lista.html`
+  carga `firebase-storage-compat.js`. El paso de reglas de Storage del workflow es
+  `continue-on-error` hasta que Storage esté activado en la consola.
 - **Español** en UI, comentarios, commits y documentación.
 - **Controles globales solo en la barra inferior flotante** (`render-utils.js`): pestañas de
   la pantalla, ayuda, estado+versión y cuenta van dentro de la píldora; la acción principal
@@ -130,6 +141,7 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `js/render-utils.js` | `esc`, `urlSegura`, `formatoMoneda`, `hoyLocalISO`, `abrirModal`, `confirmarCierreConCambios`, `mostrarToast` y la barra inferior flotante: `barraInferior`, `ranuraBarra`, `vaciarRanura`, `montarPestanas`, `montarAccionPrincipal`, `montarBotonAyuda`, `montarMenuCuenta` |
 | `js/catalogo-categorias.js` | Las 14 categorías/pasillos del usuario (confirmadas en Fase 2, orden de su nota de iPhone; "Especiales" es el cajón, no hay "Otros"), su ícono (`CATEGORIAS_ICONOS`), alias para importar y las 11 unidades |
 | `js/logica-articulos.js` | Lógica pura, probada en Node: `normalizarNombre`, `interpretarTextoRapido` ("2 kg tomate"), `ordenCategoriasEfectivo`, `agruparArticulos`, `totalesLista`, `parsearNotaImportada`, `separarRepetidos`, `buscarPorNombre`, `textoCantidad`, `pasoDeUnidad`, `siguienteCantidad`, `etiquetaUnidad` (contador −/+), `compararPorNombre` (orden alfabético), `cantidadParaUnidad`, `contarSinPrecio` (editor de precios), `copiarArticulos` (duplicar lista) |
+| `js/fotos.js` | Fotos: reducir, subir a Storage, selector (archivo/portapapeles/URL) y vista ampliada |
 | `js/vista-articulos.js` | Pantalla de una lista (incluye la hoja "Pasillos" y el filtro Favoritos): vistas "Por comprar"/"Toda la lista", campo rápido (busca + agrega), formulario agregar/editar/eliminar, marcar todo, importar nota, totales, Deshacer |
 | `js/vista-listas.js` | Pantalla "Mis listas": crear, abrir, renombrar, eliminar (dueño); avisos según rol |
 | `js/roles.js` | `ADMIN_RAIZ`, `rolEfectivo`, `asegurarRol`, `escucharRol`, `montarCuentaConRol` |

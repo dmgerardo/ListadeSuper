@@ -2,7 +2,7 @@
 // ignoreSearch, para no duplicar entradas por ?v=N); CSS/JS = caché primero, pero SOLO
 // dentro del caché de ESTA versión (así cada vN sirve exactamente sus propios archivos).
 // IMPORTANTE: cada archivo .js/.css nuevo debe agregarse también aquí.
-const APP_VERSION = "21";
+const APP_VERSION = "22";
 const NOMBRE_CACHE = "app-shell-v" + APP_VERSION;
 
 const ARCHIVOS_APP_SHELL = [
@@ -22,6 +22,7 @@ const ARCHIVOS_APP_SHELL = [
   "/js/iconos.js",
   "/js/render-utils.js",
   "/js/catalogo-categorias.js",
+  "/js/fotos.js",
   "/js/logica-articulos.js",
   "/js/vista-articulos.js",
   "/js/vista-miembros.js",
