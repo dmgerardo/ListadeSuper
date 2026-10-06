@@ -309,13 +309,9 @@ confirmado — se usará en Fase 4).
   real con dos cuentas de Google en dos teléfonos** (latencia, presencia al bloquear la
   pantalla del iPhone, avisos). La presencia se cachea en `localStorage` como todo `escuchar`:
   sin conexión puede mostrar a alguien "en la lista" de la última vez.
-- Login con Google no se probó en iPhone real (Safari ni PWA instalada). Tampoco se pudo
-  completar un login real en esta sesión: Authentication → Google todavía no está
-  habilitado en la consola, y la `apiKey` actual devuelve `auth/api-key-not-valid` (ver
-  `PROXIMA_SESION.md` — probablemente restricciones de la API key en Google Cloud Console,
-  no un typo: el formato y los demás campos del config son correctos).
-- El paso `deploy --only database` del workflow de GitHub Actions no se ejecutó nunca
-  (requiere el proyecto de Firebase y los secretos ya configurados en GitHub).
+- Login con Google: el usuario confirmó (2026-10-06, v16) que ya entra desde la app anclada
+  del iPhone. El deploy de reglas (`deploy --only database`) corre en cada push a `main` y
+  las corridas terminan en `success`.
 - Las pruebas de `pruebas/e2e` usan Firebase simulado: no cubren login real, latencia ni
   modo sin conexión. La sesión en la nube **no puede abrir `pilo-compras.web.app`** (la política
   de red del entorno lo bloquea): lo desplegado lo verifica el usuario.

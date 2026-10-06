@@ -6,131 +6,151 @@
 > de verdad técnica (esa es `AGENTS.md`), pero sigue teniendo el detalle completo de cada
 > fase y el modelo de datos.
 
-## Estado actual: v19 en `main` (2026-10-06)
-
-- v19: duplicar una lista al crear una nueva ("Copiar artículos de", todos marcados o igual que
-  la original; sin miembros ni actividad). Ver `AGENTS.md` §2.
-
-- v18: "Marcaste hace poco" + Regresar en Por comprar; formularios protegidos contra cierre
-  accidental (tocar fuera / Escape con cambios pregunta); (X) en la búsqueda.
-- v17: multiusuario (abajo).
-
-## Multiusuario (roles, invitaciones, coordinación) — v17, 2026-10-06
-
-- Roles de la app (admin raíz `dmgerardo@gmail.com` + admins por rol, participantes,
-  invitados, activo/desactivado), pantalla `usuarios.html`, invitaciones por liga (1 uso, 7
-  días) con `unirse.html`, editores = todo menos eliminar, eliminar lista (dueño), registro
-  temporal de actividad (24 h) con avisos "Ana marcó Leche", presencia "en la lista ahora",
-  "por Ana", (+/−) por transacción. Ver `AGENTS.md` §2/§3/§6.
-- Probado: reglas 31/31 en el emulador (+2 mutaciones detectadas), lógica 16/16, contraste
-  96/96, e2e compra y e2e multiusuario (390/320/1280). **Falta: prueba real con dos cuentas.**
-- Decisiones del usuario: admin raíz por correo + poder nombrar más admins; un invitado sin
-  autorizar SÍ puede unirse y editar listas a las que lo invitan; editores "todo menos
-  eliminar la lista"; avisos dentro de la app (no push) + registro temporal de quién marcó.
-
-## Estado anterior: v16 en `main` (2026-10-06)
-
-- v16: login en la app anclada del iPhone — `authDomain` = dominio de la app y CSP solo en
-  documentos (ver `AGENTS.md` §6). El usuario agregó (captura, 2026-10-06)
-  `https://pilo-compras.web.app/__/auth/handler` a los URIs de redirección del cliente OAuth
-  web y `https://pilo-compras.web.app` a los orígenes. **Falta que lo confirme en el iPhone.**
-- v15: "Por comprar"/"Toda la lista" pasaron a la barra inferior (reemplazan la pestaña
-  "Lista"); Favoritos/Plantillas/Miembros salieron de la barra hasta que existan (no cabían).
-  Índice de pasillos arriba y fijo, con el pasillo actual resaltado. Ver `AGENTS.md` §2 y §3b.
-
-- v13: selector de apariencia Sistema/Claro/Oscuro en la hoja "Mi cuenta".
-- v14: orden alfabético dentro de cada pasillo y editor rápido de unidades y precios
-  ("Unidades y precios" en "Toda la lista"). Detalle en `AGENTS.md` §3b.
-
-## Fase 2.1 (rediseño "Mercado fresco") — EN `main` (v11, 2026-10-06)
-
-Solo presentación sobre la Fase 2 (sin cambios de lógica, datos ni reglas). Ver `AGENTS.md`
-§3b (tokens, tipografía, íconos y colores por pasillo) y §3c (**lenguaje visual obligatorio
-para las fases siguientes**). Probado en local: contraste (76 parejas, `pruebas/contraste.js`),
-lógica 11/11, reglas 15/15, flujo completo con CSP real en 390/320/1280 px × claro/oscuro con
-las fuentes reales. **Falta que el usuario lo vea en el sitio real** (iPhone y escritorio).
-
-## Estado anterior: Fase 2 (artículos) — CONSTRUIDA Y PROBADA EN LOCAL (2026-10-06)
+## Estado actual: v19 en `main`, desplegada (2026-10-06)
 
 - Sitio: **https://pilo-compras.web.app** (proyecto Firebase `pilo-compras`, RTDB `us-central1`).
-  Deploy automático en cada push a `main` (Hosting + reglas).
-- Fase 0 y 1 cerradas (login con Google probado por el usuario en el sitio real).
-- Fase 2 en `main` (v10). Probado: lógica en Node (10 pruebas), reglas con el Emulador de
-  Firebase (15 casos), flujo completo con Playwright + Firebase simulado + CSP real en 390 px
-  (claro/oscuro), 320 px y 1280 px. **Falta que el usuario lo pruebe en el sitio real** (esta
-  sesión en la nube no puede abrir `pilo-compras.web.app`: la política de red lo bloquea).
+  Cada push a `main` despliega Hosting + reglas (GitHub Actions; la corrida 17, la de v19,
+  terminó en `success`).
+- Rama de trabajo: `claude/youthful-dijkstra-fo1zpw`. Flujo acordado con el usuario: commit,
+  push a la rama y push directo a `main` (`git push origin HEAD:main`), **sin PR**.
+- Pruebas al cierre de v19, todas en verde: lógica 17/17 (`node --test pruebas/*.test.js`),
+  reglas 34/34 en el emulador (`cd pruebas/reglas && npm test`), contraste 96 parejas sin
+  fallas (`node pruebas/contraste.js`), E2E `flujo-compra.js` y `multiusuario.js` a
+  390/320/1280 px en claro y oscuro. Cómo correrlas: `pruebas/README.md`.
 
-## Cómo usa la app el usuario (define el diseño de la Fase 2)
+## Qué se hizo, por versión (más reciente primero)
+
+- **v19 — duplicar una lista.** En "Nueva lista" → "Copiar artículos de" (las listas del
+  usuario) y "Los artículos copiados entran": todos marcados (por defecto, igual que al
+  importar) o igual que en la original. El nombre sugerido es "X (copia)". Se copian nombre,
+  cantidad, unidad, pasillo, precio, notas y el orden de pasillos. No se copian miembros,
+  actividad ni autoría (`copiarArticulos` en `js/logica-articulos.js`). Lista + artículos van
+  en UNA escritura multi-ruta (`_escribirListaNueva` en `js/vista-listas.js`). Hay una rama
+  nueva en las reglas de `articulos` que solo lo permite cuando creas tu propia lista en esa
+  misma escritura (3 casos en el emulador).
+- **v18 —**
+  - Sección "Marcaste hace poco" con Regresar en Por comprar (lo marcado por ti en los
+    últimos 15 min, tomado del registro de actividad).
+  - Un formulario con cambios ya no se cierra al tocar fuera ni con Escape: pregunta Guardar /
+    Descartar / Seguir editando. Hay pila de modales.
+  - (X) para limpiar la búsqueda.
+- **v17 — multiusuario.**
+  - Roles de la app: admin raíz `dmgerardo@gmail.com` + admins por rol, participante,
+    invitado, activo/desactivado. Pantalla `usuarios.html`.
+  - Invitaciones por liga (1 uso, 7 días) con `unirse.html`.
+  - Los editores pueden todo menos eliminar la lista; eliminar la lista es solo del dueño.
+  - Registro temporal de actividad (24 h) con avisos dentro de la app ("Ana marcó Leche"),
+    presencia "en la lista ahora", "por Ana", y (+/−) por transacción.
+  - Ver `AGENTS.md` §2/§3/§6.
+- **v16 — login en la app anclada del iPhone.** `authDomain` = dominio de la app y CSP solo
+  en documentos. El usuario agregó `https://pilo-compras.web.app/__/auth/handler` al cliente
+  OAuth y **confirmó que ya funciona**.
+- **v15 —**
+  - "Por comprar" y "Toda la lista" pasaron a la barra inferior.
+  - El índice de pasillos va arriba, fijo, con el pasillo actual resaltado.
+- **v14 —**
+  - Orden alfabético dentro de cada pasillo.
+  - Editor rápido "Unidades y precios" (en "Toda la lista").
+- **v13 —** selector de apariencia Sistema/Claro/Oscuro en "Mi cuenta".
+- **v11 —** rediseño "Mercado fresco" (Fase 2.1). Ver `AGENTS.md` §3b (tokens, íconos,
+  colores por pasillo) y §3c (**lenguaje visual obligatorio para las fases siguientes**).
+- **v10 —** Fase 2 (artículos):
+  - Campo rápido que busca y agrega ("2 kg tomate").
+  - Formulario de artículo.
+  - Importar desde una nota (todo entra marcado, reimportar no duplica).
+  - Marcar todo, con Deshacer.
+  - Total estimado.
+
+## Cómo usa la app el usuario (define el diseño)
 
 Viene de una nota de Notas del iPhone (copia en `pruebas/nota-ejemplo.txt`, 171 artículos en
-14 secciones). La lista es fija y se reutiliza: **marcado = ya lo tengo / no hace falta;
-desmarcado = por comprar**. En casa desmarca lo que falta ("Toda la lista"); en la tienda
-marca lo que va tomando ("Por comprar", la vista por defecto; lo marcado desaparece con
-Deshacer). Por eso no hay sección "En el carrito".
+14 secciones). La lista es fija y se reutiliza:
 
-## Qué incluye la Fase 2
+- **Marcado = ya lo tengo / no hace falta; desmarcado = por comprar.**
+- En casa desmarca lo que falta ("Toda la lista").
+- En la tienda marca lo que va tomando ("Por comprar", la vista por defecto). Lo marcado
+  desaparece de la vista y se puede deshacer.
 
-- `js/logica-articulos.js` (puro) + `js/vista-articulos.js` (pantalla) + reglas de
-  `articulos` validadas campo por campo (`database.rules.json`).
-- Campo rápido: busca mientras escribes (en toda la lista); Enter/"+" agrega o, si ya existe,
-  lo pone por comprar (no duplica); entiende "2 kg tomate"; vacío + "+" abre el formulario.
-- Formulario agregar/editar (nombre, cantidad, unidad, pasillo, precio unitario con coma
-  decimal, notas), eliminar con Deshacer, Guardar/Descartar al cerrar con cambios.
-- Importar desde una nota: vista previa (cuántos por pasillo, renglones ignorados), UNA
-  escritura multi-ruta, todo entra marcado, reimportar no duplica. Deshacer.
-- "Marcar todo como comprado" (una escritura) con Deshacer. Total estimado de lo pendiente
-  con precio, y cuántos pendientes no tienen precio.
-- Barra inferior en `lista.html` sin "+" aparte (no cabía en 375 px); un solo toast a la vez.
+Lo marcado se ve en color suave, **no tachado**. No hay sección "En el carrito".
 
-## Bugs reales encontrados y corregidos esta sesión (contexto útil, no repetir)
+## Pendiente de probar (el usuario, en el sitio real — esta sesión no puede abrirlo)
 
-Ver el detalle completo en `AGENTS.md` §6 ("Errores a evitar"). Resumen:
+La política de red del entorno en la nube bloquea `pilo-compras.web.app`. Lo desplegado lo
+verifica el usuario.
 
-1. CSP bloqueaba `<script>` inline → pantalla en blanco en producción. No se detectaba en
-   local porque ahí no hay cabeceras CSP (solo las manda Firebase Hosting).
-2. CSP bloqueaba `style="..."` inline también (`style-src`).
-3. La regla de `Cache-Control: no-cache` no cubría la ruta raíz `/` (solo `*.html`),
-   causando que quedara cacheada una versión vieja del HTML en algunos navegadores.
+1. **Duplicar (v19):** recargar hasta ver v19 → Mis listas → (+) → elegir una lista en
+   "Copiar artículos de" → revisar que llegan los artículos con precio, unidad y pasillo, y
+   que se respeta el modo marcado / igual que la original.
+2. **Multiusuario real con dos cuentas de Google en dos teléfonos.** Revisar:
+   - la invitación;
+   - los avisos "X marcó…" y su latencia;
+   - "Marcaste hace poco";
+   - la presencia al bloquear la pantalla del iPhone.
 
-**Lección para la próxima vez que se toque algo visual o de arranque**: probar siempre
-contra el sitio ya desplegado (`https://pilo-compras.web.app`), no solo con un servidor
-estático local — la CSP y las cabeceras de caché solo existen en el deploy real.
+   Las pruebas actuales usan el emulador (reglas) y Firebase simulado (UI).
+3. La pantalla de usuarios (`usuarios.html`): autorizar a un invitado para que pueda crear
+   listas, nombrar otro admin y desactivar a alguien.
 
-## Pendiente real (no inventar que ya se hizo)
+## Pendientes conocidos (solo si el usuario los pide)
 
-- **Probar la Fase 2 en el sitio real** (el usuario): importar su nota, desmarcar en casa,
-  marcar en la tienda, en iPhone (Safari y PWA instalada) y en Chrome de escritorio.
-- Reglas de **invitaciones/miembros** sin casos en el emulador (llegan con la Fase 4).
-- **Login en iPhone real** (Safari y PWA instalada): no probado.
-- **SDK de Firebase**: la app usa `10.14.1`; la más reciente es `12.19.0` (npm, 2026-10-06).
-  Actualizar es un cambio aparte, con pruebas.
-- **Mis listas como en la maqueta (B3)**: tarjeta héroe de la lista más reciente con "N por
-  comprar", estimado y avatares + cuadrícula de 2 columnas. En la 2.1 solo se aplicaron tokens,
-  encabezado ("Hola, …") y tarjetas con baldosa. Necesita leer los artículos de cada lista.
-- Reordenar pasillos por lista (`info.ordenCategorias` ya existe, falta la pantalla).
-- Íconos de `icons/*.png`: placeholder.
+- **Fase 3 (favoritos/frecuentes/plantillas, `PROYECTO_INICIAL.md` §10): PREGUNTARLE ANTES
+  de construir** qué necesita de verdad. Con su modelo de uso (la lista ES su catálogo fijo),
+  y ahora que existe duplicar lista, puede que pesen poco. Ojo: Favoritos y Plantillas
+  salieron de la barra en v15 porque no cabían; si regresan, hay que decidir dónde van.
+- **Transferir la propiedad** de una lista: no existe (solo el dueño la elimina).
+- **SDK de Firebase:** la app usa `10.14.1`; la más reciente en npm es `12.19.0`
+  (2026-10-06). Actualizar es un cambio aparte, con pruebas.
+- **"Mis listas" como en la maqueta (B3):** tarjeta héroe de la lista más reciente + cuadrícula
+  de 2 columnas. Necesita leer los artículos de cada lista.
+- **Reordenar pasillos por lista:** `info.ordenCategorias` ya existe y se copia al duplicar;
+  falta la pantalla.
+- **Presencia sin conexión:** se cachea en `localStorage`, así que sin conexión puede mostrar
+  a alguien "en la lista" de la última vez.
+- **Íconos de `icons/*.png`:** placeholder.
 
 ## Decisiones ya tomadas con el usuario (no volver a preguntar)
 
-- Nombre visible de la app: **ListadeCompras** (el repo de GitHub sigue llamándose
-  `ListadeSuper`, no se renombra).
-- Proyecto de Firebase: `pilo-compras`, región de Realtime Database `us-central1`.
-- Favoritos y plantillas: compartidos **por lista**, no personales.
-- Moneda inicial: MXN.
-- Invitaciones: caducan en 7 días, un código se considera de un solo uso.
-- Flujo de trabajo confirmado por el usuario: **cada cambio se commitea, se pushea y se
-  mergea a `main` directamente** (sin esperar aprobación de PR) — así se trabajó a partir
-  de la Fase 1. Seguir así salvo que el usuario diga lo contrario.
+- **Nombre y proyecto:**
+  - Nombre visible: **ListadeCompras**. El repo sigue siendo `ListadeSuper`.
+  - Firebase `pilo-compras`, RTDB `us-central1`.
+- **Categorías:** las 14 de su nota, en su orden: especiales, frutas_temporada, frutas,
+  verduras, carniceria, salchichoneria, refris, condimentos_aceites, abarrotes,
+  botanas_semillas, panaderia, limpieza, personal, farmacia. "Especiales" es el cajón; no hay
+  "Otros".
+- **Unidades:** pieza, kg, g, l, ml, paquete, caja, bolsa, lata, botella, docena.
+- **Importar y vistas:**
+  - Al importar, todo entra marcado.
+  - La vista por defecto es "Por comprar" y se recuerda por dispositivo.
+- **Duplicar:** por defecto todo entra marcado; se puede elegir "igual que en la original".
+- **Favoritos/plantillas y moneda:**
+  - Favoritos y plantillas son **por lista**.
+  - Moneda MXN.
+- **Invitaciones:** caducan en 7 días y son de un solo uso.
+- **Roles:**
+  - Admin raíz `dmgerardo@gmail.com`, con la posibilidad de nombrar más admins.
+  - Un invitado sin autorizar SÍ puede unirse y editar las listas a las que lo invitan, pero
+    no crear listas.
+  - Los editores pueden todo menos eliminar la lista (pueden quitar a miembros que no sean el
+    dueño).
+- **Avisos:** dentro de la app, no push. Hay un registro temporal (24 h) de quién marcó qué.
+- **Forma de trabajo:**
+  - UI, comentarios, commits y docs en español.
+  - Las decisiones de producto se le preguntan con opciones.
+  - Respuestas concretas y verificables.
 
-- Fase 2 (2026-10-06): categorías = las 14 de su nota, en su orden ("Especiales" es el
-  cajón, sin "Otros"); unidades = pieza, kg, g, l, ml, paquete, caja, bolsa, lata, botella,
-  docena; importar entra todo marcado; vista por defecto "Por comprar" (se recuerda por
-  dispositivo).
+## Lecciones (detalle en `AGENTS.md` §6)
 
-## Siguiente paso sugerido
-
-1. Que el usuario pruebe la Fase 2 + 2.1 en el sitio real y reporte.
-2. Fase 3 (ver `PROYECTO_INICIAL.md` §10): favoritos/frecuentes + autocompletado + plantillas.
-   Ojo: con el modelo de uso del usuario (la lista ES su catálogo fijo) puede que "favoritos"
-   y "plantillas" pesen menos de lo que pensaba el documento original — **preguntarle antes
-   de construir** qué le falta realmente.
+- **Infraestructura de pruebas:**
+  - La CSP y las cabeceras solo existen en Firebase Hosting. `pruebas/e2e/servidor.py` las
+    reproduce desde `firebase.json`; úsalo siempre en E2E.
+  - `firebase emulators:exec` falla detrás del proxy. Usa `pruebas/reglas/correr.js`, que
+    lanza el jar directo.
+  - No uses `pkill -f`: mata la propia shell.
+- **Reglas de la base:**
+  - Se GENERAN con `scripts/generar-reglas.py`; nunca edites `database.rules.json` a mano.
+  - En escrituras multi-ruta, `root`/`data` son el estado VIEJO.
+  - `.validate` no corre al borrar.
+- **Versión y Service Worker:**
+  - El hook `.githooks/pre-commit` sube `APP_VERSION`; requiere `git config core.hooksPath
+    .githooks`.
+  - El Service Worker cachea por versión.
