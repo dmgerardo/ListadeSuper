@@ -223,6 +223,45 @@ function montarBotonAyuda(contenidoHtml) {
   return boton;
 }
 
+// ===== Apariencia (claro / oscuro / sistema) =====
+// Vive en la hoja "Mi cuenta" y no en la barra: con las 4 pestañas de una lista y los 3
+// controles globales no cabe un botón más en un iPhone SE. La preferencia se guarda en este
+// dispositivo (localStorage, vía tema.js) y se aplica al instante, sin recargar.
+var _OPCIONES_TEMA = [
+  { valor: "sistema", etiqueta: "Sistema", icono: "monitor" },
+  { valor: "claro", etiqueta: "Claro", icono: "sun" },
+  { valor: "oscuro", etiqueta: "Oscuro", icono: "moon" }
+];
+
+function selectorTema() {
+  var actual = window.obtenerPreferenciaTema ? window.obtenerPreferenciaTema() : "sistema";
+  return (
+    '<p class="etiqueta-seccion" id="titulo-apariencia">Apariencia</p>' +
+    '<div class="selector-vista selector-tema" role="radiogroup" aria-labelledby="titulo-apariencia">' +
+    _OPCIONES_TEMA.map(function (o) {
+      var activa = o.valor === actual;
+      return (
+        '<button type="button" role="radio" data-tema="' + o.valor + '" aria-checked="' + (activa ? "true" : "false") + '"' +
+        (activa ? ' class="activa"' : "") + ">" + icono(o.icono, 18) + "<span>" + o.etiqueta + "</span></button>"
+      );
+    }).join("") +
+    "</div>"
+  );
+}
+
+function conectarSelectorTema(contenedor) {
+  contenedor.addEventListener("click", function (ev) {
+    var boton = ev.target.closest("[data-tema]");
+    if (!boton || !window.establecerPreferenciaTema) return;
+    window.establecerPreferenciaTema(boton.dataset.tema);
+    contenedor.querySelectorAll("[data-tema]").forEach(function (b) {
+      var activa = b === boton;
+      b.classList.toggle("activa", activa);
+      b.setAttribute("aria-checked", activa ? "true" : "false");
+    });
+  });
+}
+
 // montarMenuCuenta(usuario): foto del usuario en la barra; al tocarla abre una hoja con su
 // nombre, correo y "Cerrar sesión". Con usuario null, quita el control.
 function montarMenuCuenta(usuario) {
@@ -254,12 +293,14 @@ function montarMenuCuenta(usuario) {
         "<div><h3>" + esc(usuario.displayName || "Mi cuenta") + "</h3>" +
         '<p class="texto-suave">' + esc(usuario.email || "") + "</p></div>" +
         "</div>" +
+        selectorTema() +
         '<div class="fila-botones">' +
         '<button type="button" class="btn btn-secundario" data-cerrar>Cerrar</button>' +
         '<button type="button" class="btn btn-peligro" data-salir>' + icono("log-out", 18) + "<span>Cerrar sesión</span></button>" +
         "</div>",
       null
     );
+    conectarSelectorTema(modal.elemento);
     modal.elemento.querySelector("[data-cerrar]").addEventListener("click", function () {
       modal.cerrar("manual");
     });

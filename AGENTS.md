@@ -114,6 +114,10 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
   marca ni desmarca. Paso: 1 (piezas, paquetes…), 0.5 (kg, l), 100 (g, ml); nunca baja de un
   paso (las reglas exigen > 0; quitar = "Eliminar"). Unidad explícita: solo "pieza" se abrevia
   (pza/pzas). En esa vista el subtotal baja al renglón de detalle para que quepa en 320 px.
+- **Apariencia** (Sistema / Claro / Oscuro): selector en la hoja "Mi cuenta" (tocar la foto
+  en la barra), no en la barra (no cabe un 8.º control en 320 px). Usa
+  `establecerPreferenciaTema()` de `tema.js`; se guarda por dispositivo en `localStorage`
+  (`preferenciaTema`) y "Sistema" sigue al SO en vivo. Sin sesión (bienvenida) no hay selector.
 - **Barra inferior**: la pestaña activa lleva tinte primario y su etiqueta; en pantallas
   < 375 px la etiqueta se oculta (con 7 controles no cabe en un iPhone SE), queda el ícono con
   su `aria-label`.

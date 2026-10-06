@@ -11,6 +11,7 @@ evalúan compuestos sobre la base indicada.
 | claro | `--color-texto-suave` | `--color-fondo` | #56655B / #F3F5F0 | 5.61:1 | 4.5:1 | OK | Subtítulos sobre el fondo |
 | claro | `--color-texto-suave` | `--color-superficie` | #56655B / #FFFFFF | 6.16:1 | 4.5:1 | OK | Detalle de artículo y lo marcado (Toda la lista) |
 | claro | `--color-texto-suave` | `--color-segmento` | #56655B / #E8ECE6 | 5.16:1 | 4.5:1 | OK | Pestaña inactiva del selector de vista |
+| claro | `--color-texto` | `--color-segmento-activo` | #15211A / #FFFFFF | 16.61:1 | 4.5:1 | OK | Opción elegida del selector (vista / apariencia) |
 | claro | `--color-texto` | `--color-segmento` | #15211A / #E8ECE6 | 13.90:1 | 4.5:1 | OK | Contador, <code> y botón (−) de cantidad sobre el riel gris |
 | claro | `--color-texto-suave` | `--color-superficie` | #56655B / #FFFFFF | 6.16:1 | 4.5:1 | OK | Unidad del contador de cantidad (pza, kg…) en la fila |
 | claro | `--color-primario-oscuro` | `--color-fondo` | #0F5C2B / #F3F5F0 | 7.40:1 | 4.5:1 | OK | Enlaces y acciones de texto sobre el fondo |
@@ -50,6 +51,7 @@ evalúan compuestos sobre la base indicada.
 | oscuro | `--color-texto-suave` | `--color-fondo` | #9DB0A3 / #121815 | 7.86:1 | 4.5:1 | OK | Subtítulos sobre el fondo |
 | oscuro | `--color-texto-suave` | `--color-superficie` | #9DB0A3 / #1B231E | 7.02:1 | 4.5:1 | OK | Detalle de artículo y lo marcado (Toda la lista) |
 | oscuro | `--color-texto-suave` | `--color-segmento` | #9DB0A3 / #222C26 | 6.30:1 | 4.5:1 | OK | Pestaña inactiva del selector de vista |
+| oscuro | `--color-texto` | `--color-segmento-activo` | #E8EFE9 / #34443B | 8.82:1 | 4.5:1 | OK | Opción elegida del selector (vista / apariencia) |
 | oscuro | `--color-texto` | `--color-segmento` | #E8EFE9 / #222C26 | 12.33:1 | 4.5:1 | OK | Contador, <code> y botón (−) de cantidad sobre el riel gris |
 | oscuro | `--color-texto-suave` | `--color-superficie` | #9DB0A3 / #1B231E | 7.02:1 | 4.5:1 | OK | Unidad del contador de cantidad (pza, kg…) en la fila |
 | oscuro | `--color-primario-oscuro` | `--color-fondo` | #7FD9A0 / #121815 | 10.57:1 | 4.5:1 | OK | Enlaces y acciones de texto sobre el fondo |

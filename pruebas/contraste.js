@@ -72,6 +72,7 @@ const PAREJAS = [
   ["color-texto-suave", "color-fondo", TEXTO, "Subtítulos sobre el fondo"],
   ["color-texto-suave", "color-superficie", TEXTO, "Detalle de artículo y lo marcado (Toda la lista)"],
   ["color-texto-suave", "color-segmento", TEXTO, "Pestaña inactiva del selector de vista"],
+  ["color-texto", "color-segmento-activo", TEXTO, "Opción elegida del selector (vista / apariencia)"],
   ["color-texto", "color-segmento", TEXTO, "Contador, <code> y botón (−) de cantidad sobre el riel gris"],
   ["color-texto-suave", "color-superficie", TEXTO, "Unidad del contador de cantidad (pza, kg…) en la fila"],
   ["color-primario-oscuro", "color-fondo", TEXTO, "Enlaces y acciones de texto sobre el fondo"],

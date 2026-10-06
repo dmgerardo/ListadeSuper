@@ -16,6 +16,7 @@
   --color-tinte-primario: #E4F2E7;       /* estados activos */
   --color-borde: #E3E8E1;
   --color-segmento: #E8ECE6;             /* riel del selector de vista */
+  --color-segmento-activo: #FFFFFF;      /* opción elegida del selector */
   --color-peligro: #B42318;
   --color-texto-sobre-peligro: #FFFFFF;
   --color-toast-fondo: #15211A;
@@ -68,6 +69,7 @@
   --color-tinte-primario: #1D3B29;
   --color-borde: #2A352E;
   --color-segmento: #222C26;
+  --color-segmento-activo: #34443B;
   --color-peligro: #F1907C;
   --color-texto-sobre-peligro: #15211A;
   --color-toast-fondo: #E8EFE9;
@@ -454,6 +456,8 @@ select:focus-visible, textarea:focus-visible {
 .foto-cuenta-grande { width: 56px; height: 56px; }
 .cabecera-cuenta { display: flex; align-items: center; gap: var(--espacio); }
 .cabecera-cuenta h3, .cabecera-cuenta p { margin: 0; overflow-wrap: anywhere; }
+.etiqueta-seccion { margin: 18px 0 6px; font-weight: 700; font-size: 14px; }
+.selector-tema { margin-bottom: 0; }
 
 /* ===== Mis listas (index.html) ===== */
 .fila-tarjeta { display: flex; align-items: center; gap: 12px; padding: 10px 6px 10px 10px; }
@@ -531,7 +535,7 @@ select:focus-visible, textarea:focus-visible {
   gap: 6px;
 }
 .selector-vista button.activa {
-  background: var(--color-superficie);
+  background: var(--color-segmento-activo);
   color: var(--color-texto);
   box-shadow: var(--sombra-segmento);
 }

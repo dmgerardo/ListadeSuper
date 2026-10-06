@@ -30,10 +30,13 @@ async function nuevoContexto(browser, opciones) {
   });
   await ctx.addInitScript((modo) => {
     window.__USUARIO_MOCK = { uid: "u1", displayName: "Prueba", email: "prueba@ejemplo.com", photoURL: "" };
-    try {
-      localStorage.setItem("preferenciaTema", modo);
-    } catch (e) {}
-  }, opciones.modo || "claro");
+    // modo null = no tocar la preferencia guardada (para probar que persiste al recargar).
+    if (modo) {
+      try {
+        localStorage.setItem("preferenciaTema", modo);
+      } catch (e) {}
+    }
+  }, opciones.modo === undefined ? "claro" : opciones.modo);
   await ctx.route(/gstatic\.com\/firebasejs\//, (r) => r.fulfill({ contentType: "text/javascript", body: "" }));
   await ctx.route(/gstatic\.com\/firebasejs\/.*app-compat/, (r) => r.fulfill({ contentType: "text/javascript", body: mock }));
   return { ctx, errores };
@@ -366,6 +369,42 @@ async function sinAcceso(browser) {
   await ctx.close();
 }
 
+// Selector de apariencia en "Mi cuenta": Claro/Oscuro a voluntad, persiste al recargar, y
+// "Sistema" sigue al sistema operativo en vivo.
+async function apariencia(browser) {
+  const { ctx, errores } = await nuevoContexto(browser, { viewport: { width: 390, height: 800 }, modo: null, colorScheme: "light" });
+  const page = await ctx.newPage();
+  const modoActual = () => page.getAttribute("html", "data-modo");
+  await page.goto(BASE + "/index.html");
+  await pausa(page, 400);
+  assert.equal(await modoActual(), "claro", "por defecto sigue al sistema (claro)");
+  await page.click('[aria-label="Mi cuenta"]');
+  await pausa(page);
+  assert.equal(await page.getAttribute('[data-tema="sistema"]', "aria-checked"), "true");
+  await page.click('[data-tema="oscuro"]');
+  assert.equal(await modoActual(), "oscuro", "Oscuro se aplica al instante");
+  assert.equal(await page.getAttribute('[data-tema="oscuro"]', "aria-checked"), "true");
+  await page.screenshot({ path: path.join(CAPTURAS, "apariencia-oscuro.png") });
+  await page.reload();
+  await pausa(page, 400);
+  assert.equal(await modoActual(), "oscuro", "la elección persiste al recargar");
+  await page.click('[aria-label="Mi cuenta"]');
+  await pausa(page);
+  await page.click('[data-tema="claro"]');
+  await page.emulateMedia({ colorScheme: "dark" });
+  await pausa(page);
+  assert.equal(await modoActual(), "claro", "Claro fijo no cambia aunque el sistema pase a oscuro");
+  await page.click('[data-tema="sistema"]');
+  assert.equal(await modoActual(), "oscuro", "Sistema toma el modo del sistema (oscuro)");
+  await page.emulateMedia({ colorScheme: "light" });
+  await pausa(page);
+  assert.equal(await modoActual(), "claro", "Sistema sigue el cambio en vivo");
+  await page.screenshot({ path: path.join(CAPTURAS, "apariencia-claro.png") });
+  assert.deepEqual(errores, []);
+  console.log("  [apariencia] Claro/Oscuro a voluntad, persiste al recargar, Sistema sigue al SO");
+  await ctx.close();
+}
+
 (async () => {
   const browser = await chromium.launch();
   let fallo = null;
@@ -375,6 +414,7 @@ async function sinAcceso(browser) {
       await flujo(browser, ancho, modo);
     }
     await sinAcceso(browser);
+    await apariencia(browser);
   } catch (e) {
     fallo = e;
   }
