@@ -75,6 +75,9 @@ en npm es `12.19.0`, ver §7).
   `tag` y reciclan un color existente (`clasePasillo`/`iconoPasillo`), sin hex nuevos. Duplicar una
   lista copia `info.categorias`. Dentro de la hoja "Pasillos" los avisos y su Deshacer van EN la hoja
   (los toasts quedan debajo de los modales).
+- **Orden de los pasillos: alfabético por nombre** (pedido del usuario, v21), en secciones, índice,
+  hoja "Pasillos", desplegables y vista previa de importar. Lo decide `ordenCategoriasEfectivo`
+  (ignora `info.ordenCategorias`, que ya no se usa; renombrar un pasillo lo cambia de lugar).
 - **Importar**: un renglón que empieza con tabulador es artículo aunque no traiga viñeta; los
   encabezados se reconocen contra los pasillos de la lista (nombre propio antes que alias).
 - **Artículo nuevo desde el campo rápido** (Enter o +, si no existe): abre el formulario con

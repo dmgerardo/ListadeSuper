@@ -54,17 +54,18 @@ test("interpretarTextoRapido", () => {
   }
 });
 
-test("ordenCategoriasEfectivo: ids viejos fuera, faltantes al final, sin repetidos", () => {
-  const defecto = g("CATEGORIAS_ORDEN_DEFECTO");
-  // Lista creada en la Fase 1 con el catálogo provisional: casi todos los ids son viejos.
-  const viejo = ["frutas_verduras", "panaderia", "lacteos", "farmacia", "otros"];
-  const r = L.ordenCategoriasEfectivo(viejo);
+test("ordenCategoriasEfectivo: alfabético por nombre (sin acentos), ignora el orden guardado", () => {
+  const nombres = g("CATEGORIAS_NOMBRES");
+  const r = plano(L.ordenCategoriasEfectivo(["farmacia", "limpieza"]));
   assert.equal(r.length, 14);
-  assert.deepEqual(plano(r.slice(0, 2)), ["panaderia", "farmacia"]);
-  assert.deepEqual(plano(L.ordenCategoriasEfectivo(undefined)), plano(defecto));
-  // Realtime Database puede devolver un arreglo como objeto { "0": ..., "1": ... }.
-  assert.deepEqual(plano(L.ordenCategoriasEfectivo({ 1: "frutas", 0: "limpieza" })).slice(0, 2), ["limpieza", "frutas"]);
-  assert.deepEqual(plano(L.ordenCategoriasEfectivo(["frutas", "frutas"])).filter((x) => x === "frutas"), ["frutas"]);
+  assert.deepEqual(r.slice(0, 5), ["abarrotes", "botanas_semillas", "carniceria", "condimentos_aceites", "especiales"]);
+  assert.deepEqual(r.slice(-3), ["refris", "salchichoneria", "verduras"]);
+  assert.deepEqual(plano(L.ordenCategoriasEfectivo(undefined)), r);
+  assert.deepEqual(plano(L.ordenCategoriasEfectivo({ 1: "frutas", 0: "limpieza" })), r);
+  // Frutas antes que "Frutas de temporada"; Panadería (con tilde) entre Limpieza y Personal.
+  assert.ok(r.indexOf("frutas") < r.indexOf("frutas_temporada"));
+  assert.ok(r.indexOf("limpieza") < r.indexOf("panaderia") && r.indexOf("panaderia") < r.indexOf("personal"));
+  assert.ok(nombres.panaderia);
 });
 
 test("agruparArticulos: orden de pasillos, orden de creación, filtros", () => {
@@ -76,9 +77,9 @@ test("agruparArticulos: orden de pasillos, orden de creación, filtros", () => {
     "-e": { nombre: "", categoria: "frutas" }, // sin nombre: se ignora
   };
   const todo = plano(L.agruparArticulos(arts, ["limpieza"]));
-  assert.deepEqual(todo.map((g) => g.categoria), ["limpieza", "especiales", "frutas"]);
-  assert.deepEqual(todo[2].articulos.map((a) => a.nombre), ["Peras", "Plátanos"]); // alfabético, no de llave
-  assert.equal(todo[1].articulos[0].nombre, "Raro"); // categoría desconocida → Especiales
+  assert.deepEqual(todo.map((g) => g.categoria), ["especiales", "frutas", "limpieza"]);
+  assert.deepEqual(todo[1].articulos.map((a) => a.nombre), ["Peras", "Plátanos"]); // alfabético, no de llave
+  assert.equal(todo[0].articulos[0].nombre, "Raro"); // categoría desconocida → Especiales
   const pendientes = plano(L.agruparArticulos(arts, [], { soloPendientes: true }));
   assert.equal(pendientes.find((g) => g.categoria === "frutas").articulos.length, 1);
   const filtrado = plano(L.agruparArticulos(arts, [], { filtro: "PLATANO" }));
@@ -222,7 +223,7 @@ test("editor de precios: soloSinPrecio, cantidadParaUnidad y contarSinPrecio", (
     "-4": { nombre: "Pinol", categoria: "limpieza", comprado: false },
   };
   const r = plano(L.agruparArticulos(arts, [], { soloSinPrecio: true }));
-  assert.deepEqual(r.map((g) => [g.categoria, g.articulos.map((a) => a.nombre)]), [["refris", ["Crema"]], ["limpieza", ["Pinol"]]]);
+  assert.deepEqual(r.map((g) => [g.categoria, g.articulos.map((a) => a.nombre)]), [["limpieza", ["Pinol"]], ["refris", ["Crema"]]]);
   assert.equal(L.contarSinPrecio(arts), 2);
   assert.equal(L.contarSinPrecio({}), 0);
   const C = (c, u) => L.cantidadParaUnidad(c, u);
@@ -284,10 +285,9 @@ test("categoriasEfectivas: sin personalizar = los 14; personalizado = ese conjun
   assert.deepEqual(c, { frutas: "Fruta fresca", c_ab12: "Mascotas", especiales: "Especiales" });
 });
 
-test("ordenCategoriasEfectivo con pasillos propios: los creados van al final, los borrados no aparecen", () => {
-  const cats = { especiales: "Especiales", frutas: "Frutas", c_x1: "Mascotas" };
-  assert.deepEqual(plano(L.ordenCategoriasEfectivo(["c_x1", "verduras", "frutas"], cats)), ["c_x1", "frutas", "especiales"]);
-  assert.deepEqual(plano(L.ordenCategoriasEfectivo(undefined, cats)), ["especiales", "frutas", "c_x1"]);
+test("ordenCategoriasEfectivo con pasillos propios: se ordenan por nombre junto con los demás", () => {
+  const cats = { especiales: "Especiales", frutas: "Frutas", c_x1: "Mascotas", c_x2: "árboles" };
+  assert.deepEqual(plano(L.ordenCategoriasEfectivo(["c_x1"], cats)), ["c_x2", "especiales", "frutas", "c_x1"]);
 });
 
 test("validarNombreCategoria: vacío, largo y repetido (sin acentos) se rechazan; renombrarse a sí mismo se permite", () => {
@@ -327,7 +327,7 @@ test("escrituraCategorias: primera personalización escribe todo; luego solo lo 
   const nuevas2 = Object.assign({}, nuevas, { c_x1: "Mascotas" });
   const c2 = plano(L.escrituraCategorias(info, nuevas2, L.ordenCategoriasEfectivo(null, nuevas2).concat([])));
   assert.deepEqual(Object.keys(c2).sort(), ["categorias/c_x1/nombre", "ordenCategorias"]);
-  assert.equal(c2.ordenCategorias[c2.ordenCategorias.length - 1], "c_x1");
+  assert.ok(c2.ordenCategorias.includes("c_x1"));
   // Eliminar.
   const sinFarmacia = Object.assign({}, nuevas); delete sinFarmacia.farmacia;
   const c3 = plano(L.escrituraCategorias(info, sinFarmacia, null));

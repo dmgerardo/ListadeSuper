@@ -93,9 +93,9 @@ async function flujo(browser, ancho, modo) {
   assert.equal(await page.getAttribute('[data-vista="todo"]', "aria-selected"), "true");
   assert.equal((await nombresVisibles(page)).length, 171);
   const pasillos = await page.$$eval(".titulo-pasillo", (h) => h.map((x) => [...x.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim()));
-  assert.deepEqual(pasillos.slice(0, 4), ["Especiales", "Frutas de temporada", "Frutas", "Verduras"]);
+  assert.deepEqual(pasillos.slice(0, 4), ["Abarrotes", "Botanas y semillas", "Carnicería", "Condimentos y aceites"]); // alfabético
   assert.equal(pasillos.length, 14);
-  const frutas = await page.$$eval(".grupo-pasillo:nth-child(3) .nombre-articulo", (n) => n.slice(0, 3).map((x) => x.textContent));
+  const frutas = await page.$$eval("#p-frutas .nombre-articulo", (n) => n.slice(0, 3).map((x) => x.textContent));
   assert.deepEqual(frutas, ["Fresas", "Kiwi", "Limones"]); // alfabético dentro del pasillo
   paso("importación: 1 escritura, 171 artículos, 14 pasillos en orden, alfabético adentro");
 
@@ -206,7 +206,7 @@ async function flujo(browser, ancho, modo) {
   // 6. "Por comprar": solo los 4, por pasillo.
   await page.click('[data-vista="pendientes"]');
   await pausa(page);
-  assert.deepEqual(await nombresVisibles(page), ["tomate", "Mangos", "Plátanos", "Leche Entera 2 Santa Clara"]);
+  assert.deepEqual(await nombresVisibles(page), ["Leche Entera 2 Santa Clara", "tomate", "Mangos", "Plátanos"]);
   assert.match(await page.textContent(".fila-articulo:first-child .detalle-articulo"), /2 kg/);
 
   // 7. Editar tomate: pasillo Verduras y precio 25,50 (coma decimal) → subtotal y total.
@@ -233,7 +233,7 @@ async function flujo(browser, ancho, modo) {
   assert.equal(await page.textContent("[data-resumen] .resumen-monto"), "$51.00");
   assert.equal(await page.textContent("[data-resumen] .resumen-nota"), "3 sin precio");
   assert.equal(await page.getAttribute("[data-resumen]", "aria-live"), "polite");
-  assert.deepEqual(await nombresVisibles(page), ["Mangos", "Plátanos", "tomate", "Leche Entera 2 Santa Clara"]);
+  assert.deepEqual(await nombresVisibles(page), ["Leche Entera 2 Santa Clara", "Mangos", "Plátanos", "tomate"]);
   paso("edición: pasillo + precio con coma; total $51.00 (2 kg × $25.50)");
 
   // 7b. Contador (−)/(+) en "Toda la lista": cambia SOLO la cantidad, con paso por unidad.
@@ -472,12 +472,12 @@ async function flujo(browser, ancho, modo) {
   assert.equal(chips.length, 14, "un chip por pasillo visible");
   assert.deepEqual(chips.find((c) => c[0] === "#p-frutas"), ["#p-frutas", "2"], "chip de Frutas con sus 2 pendientes");
   assert.equal(await page.$$eval(".grupo-pasillo .baldosa-pasillo svg", (b) => b.length), 14, "baldosa con ícono en cada pasillo");
-  await page.click('.chip-pasillo[href="#p-abarrotes"]');
+  await page.click('.chip-pasillo[href="#p-personal"]');
   await page.waitForTimeout(900); // scroll suave
   const destino = await page.evaluate(() => {
-    const h = document.querySelector("#p-abarrotes .titulo-pasillo").getBoundingClientRect();
+    const h = document.querySelector("#p-personal .titulo-pasillo").getBoundingClientRect();
     const ind = document.querySelector(".indice-pasillos").getBoundingClientRect();
-    const chip = document.querySelector('.chip-pasillo[href="#p-abarrotes"]');
+    const chip = document.querySelector('.chip-pasillo[href="#p-personal"]');
     return {
       indiceArriba: Math.round(ind.top),
       tituloBajoIndice: Math.round(h.top - ind.bottom),
@@ -490,11 +490,11 @@ async function flujo(browser, ancho, modo) {
   assert.ok(destino.scrollY > 500, "la página sí bajó: " + JSON.stringify(destino));
   assert.equal(destino.indiceArriba, 0, "el índice queda fijo arriba: " + JSON.stringify(destino));
   assert.ok(destino.tituloBajoIndice >= -1 && destino.tituloBajoIndice < 40, "título justo debajo del índice: " + JSON.stringify(destino));
-  assert.ok(destino.chipActivo, "chip de Abarrotes resaltado: " + JSON.stringify(destino));
+  assert.ok(destino.chipActivo, "chip de Personal resaltado: " + JSON.stringify(destino));
   // Al seguir bajando a mano, el resaltado cambia de pasillo.
-  await page.evaluate(() => window.scrollTo({ top: document.querySelector("#p-limpieza").offsetTop, behavior: "instant" }));
+  await page.evaluate(() => window.scrollTo({ top: document.querySelector("#p-verduras").offsetTop, behavior: "instant" }));
   await pausa(page, 400);
-  assert.ok(await page.$eval('.chip-pasillo[href="#p-limpieza"]', (c) => c.classList.contains("activo")), "el resaltado sigue el scroll");
+  assert.ok(await page.$eval('.chip-pasillo[href="#p-verduras"]', (c) => c.classList.contains("activo")), "el resaltado sigue el scroll");
   if (ancho === 320 || ancho === 390) await page.screenshot({ path: path.join(CAPTURAS, "indice-fijo-" + ancho + "-" + modo + ".png") });
   const marcadoEstilo = await page.$eval(".fila-articulo.marcado .nombre-articulo", (e) => {
     const cs = getComputedStyle(e);

@@ -87,28 +87,17 @@ function categoriaValida(id, categorias) {
   return Object.prototype.hasOwnProperty.call(conocidas, id) ? id : CATEGORIA_DEFECTO;
 }
 
-// ordenCategoriasEfectivo(ordenGuardado, categorias): el orden de pasillos de la lista, sin ids
-// desconocidos ni repetidos, y con los pasillos que falten agregados al final (primero los
-// por defecto en su orden, luego los creados por el usuario). Las listas creadas antes de la
-// Fase 2 traen ids viejos (frutas_verduras, lacteos…): quedan filtrados y la lista usa el
-// orden por defecto, sin migrar datos. `categorias` omitido = los 14 por defecto.
+// ordenCategoriasEfectivo(ordenGuardado, categorias): el orden de los pasillos de la lista:
+// ALFABÉTICO por nombre (pedido del usuario, 2026-10-06; sin acentos ni mayúsculas, "ñ" tras
+// "n"), el mismo en las secciones, el índice, la hoja "Pasillos", los desplegables y la vista
+// previa de importar. `ordenGuardado` (info.ordenCategorias, el orden manual de antes) ya no
+// se usa: se conserva el parámetro para no tocar a los llamadores y por si algún día se
+// reordenan a mano. Renombrar un pasillo lo mueve de lugar. `categorias` omitido = los 14.
 function ordenCategoriasEfectivo(ordenGuardado, categorias) {
   var conocidas = categorias || CATEGORIAS_NOMBRES;
-  var lista = Array.isArray(ordenGuardado)
-    ? ordenGuardado
-    : ordenGuardado && typeof ordenGuardado === "object"
-      ? Object.keys(ordenGuardado).sort(function (a, b) { return a - b; }).map(function (k) { return ordenGuardado[k]; })
-      : [];
-  var relleno = CATEGORIAS_ORDEN_DEFECTO.concat(Object.keys(conocidas));
-  var vistos = {};
-  var orden = [];
-  lista.concat(relleno).forEach(function (id) {
-    if (Object.prototype.hasOwnProperty.call(conocidas, id) && !vistos[id]) {
-      vistos[id] = true;
-      orden.push(id);
-    }
+  return Object.keys(conocidas).sort(function (a, b) {
+    return _COLADOR_NOMBRES.compare(conocidas[a], conocidas[b]) || (a < b ? -1 : a > b ? 1 : 0);
   });
-  return orden;
 }
 
 // validarNombreCategoria(texto, categorias, idActual) → { ok, nombre, error }. Nombre de 1 a

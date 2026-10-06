@@ -66,8 +66,12 @@ async function correr(browser, ancho, modo) {
   const idMascotas = Object.keys(i.categorias).find((k) => i.categorias[k].nombre === "Mascotas");
   assert.match(idMascotas, /^c_[a-z0-9]+$/);
   assert.equal(Object.keys(i.categorias).length, 15, "la primera personalización escribe los 14 + el nuevo");
-  assert.equal(orden(i)[orden(i).length - 1], idMascotas);
+  assert.ok(orden(i).includes(idMascotas));
   assert.equal((await page.$$("[data-pasillo]")).length, 15);
+  // La hoja y los desplegables van en orden alfabético (Mascotas queda entre Limpieza y Panadería).
+  const nombresHoja = await page.$$eval("[data-pasillo]", (c) => c.map((x) => x.value));
+  assert.deepEqual(nombresHoja, [...nombresHoja].sort((a, b) => a.localeCompare(b, "es")));
+  assert.equal(nombresHoja.indexOf("Mascotas"), nombresHoja.indexOf("Limpieza") + 1);
   // Repetido (sin acentos ni mayúsculas) se rechaza.
   await page.fill("#pasillo-nuevo", "PANADERIA");
   await page.click("[data-form-pasillo] button[type=submit]");
@@ -130,7 +134,7 @@ async function correr(browser, ancho, modo) {
   await pausa(page, 400);
   i = await info();
   assert.equal(i.categorias.farmacia.nombre, "Farmacia", "Deshacer restaura el pasillo");
-  assert.equal(orden(i)[13], "farmacia", "y en su posición");
+  assert.ok(orden(i).includes("farmacia"), "y en el orden");
   paso("eliminar vacío con Deshacer; con artículos bloqueado");
 
   // 6. El selector del formulario de artículo usa los pasillos de la lista.
@@ -140,6 +144,8 @@ async function correr(browser, ancho, modo) {
   await pausa(page);
   const opciones = await page.$$eval("#art-categoria option", (o) => o.map((x) => x.textContent));
   assert.ok(opciones.includes("Mascotas") && opciones.includes("Fruta fresca") && !opciones.includes("Frutas"));
+  const reales = opciones.filter((o) => o !== "Elige un pasillo…");
+  assert.deepEqual(reales, [...reales].sort((a, b) => a.localeCompare(b, "es")), "desplegable en orden alfabético");
   await page.click("[data-cancelar]");
   await pausa(page);
 
