@@ -6,7 +6,14 @@
 > de verdad técnica (esa es `AGENTS.md`), pero sigue teniendo el detalle completo de cada
 > fase y el modelo de datos.
 
-## Estado actual: v15 en `main` (2026-10-06)
+## Estado actual: v15 en `main`; corrección del login en iPhone EN LA RAMA, sin publicar
+
+- **Pendiente de publicar** (rama `claude/youthful-dijkstra-fo1zpw`): `authDomain` = dominio
+  de la app + CSP solo en documentos (ver `AGENTS.md` §6). **No mergear a `main` hasta que el
+  usuario confirme** que agregó `https://pilo-compras.web.app/__/auth/handler` a los URIs de
+  redirección autorizados del cliente OAuth web (Google Cloud Console → APIs y servicios →
+  Credenciales). Si se publica antes, el login falla en todos lados con `redirect_uri_mismatch`.
+  Después de publicar: que el usuario pruebe el login en la app anclada del iPhone.
 
 - v15: "Por comprar"/"Toda la lista" pasaron a la barra inferior (reemplazan la pestaña
   "Lista"); Favoritos/Plantillas/Miembros salieron de la barra hasta que existan (no cabían).

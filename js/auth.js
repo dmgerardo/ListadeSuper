@@ -71,8 +71,11 @@ function requerirSesion(cb) {
 }
 
 // Completa el flujo de signInWithRedirect al cargar la página (necesario en Safari/iOS y
-// en la PWA instalada, donde el popup no es viable). Si falla, solo lo registramos: el
-// usuario vuelve a ver el botón "Continuar con Google".
+// en la PWA instalada, donde el popup no es viable). Si falla, se avisa con el código del
+// error (antes solo iba a la consola, que en la app anclada del iPhone no se ve).
 firebase.auth().getRedirectResult().catch(function (error) {
   console.error("Error de login (redirect):", error);
+  if (typeof mostrarToast === "function") {
+    mostrarToast("No se pudo iniciar sesión (" + (error && error.code ? error.code : "error") + ")", { duracionMs: 10000 });
+  }
 });

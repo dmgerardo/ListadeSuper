@@ -230,6 +230,18 @@ confirmado — se usará en Fase 4).
   de devolver la respuesta. Verificado con Playwright + SW real, simulando tres deploys.
 - **Errores `.js.map` de gstatic bloqueados por `connect-src`**: los pide DevTools (source
   maps) solo con la consola abierta; la app no los usa. No abrir la CSP por eso.
+- **Login en la app anclada a la pantalla de inicio del iPhone regresaba sin sesión**
+  (reportado por el usuario, 2026-10-06): iba a Google y volvía al botón "Continuar con
+  Google". Causa: `signInWithRedirect` con `authDomain` = `pilo-compras.firebaseapp.com`
+  (distinto del dominio de la app) — Safari iOS 16.1+ aísla ese almacenamiento como de
+  terceros y el resultado de la redirección se pierde. Corrección (la recomendada por
+  Firebase para apps en Hosting): `authDomain` = el mismo dominio de la app
+  (`js/firebase-config.js`), y la CSP/`X-Frame-Options` solo en `/` y `*.html` (antes en `**`,
+  lo que también alcanzaba `/__/auth/handler` y `/__/auth/iframe`, que usan scripts inline y
+  se cargan en iframe). **Requiere** `https://pilo-compras.web.app/__/auth/handler` en "URIs de
+  redirección autorizados" del cliente OAuth web en Google Cloud Console; sin eso Google
+  responde `redirect_uri_mismatch` en todos los dispositivos. `pruebas/e2e/servidor.py` ahora
+  aplica las cabeceras por ruta, como Hosting.
 - **Un toast de una acción anterior tapaba el formulario recién abierto** (z-index 200 del
   toast contra 100 del modal; visto en capturas de la Fase 2.1 cubriendo el campo "Notas").
   Ahora los toasts van en z-index 90. La prueba `flujo-compra.js` lo verifica.
