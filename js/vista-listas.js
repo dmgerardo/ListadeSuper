@@ -67,7 +67,8 @@ function _formularioLista(valoresIniciales, alGuardar, alEliminar) {
       "</button>" +
       "</div>" +
       "</form>",
-    null
+    null,
+    { hayCambios: function () { return hayCambios(); }, guardar: function () { enviar(); } }
   );
   var form = modal.elemento.querySelector("[data-form-lista]");
   var campoNombre = modal.elemento.querySelector("#campo-nombre-lista");

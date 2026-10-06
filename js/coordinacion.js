@@ -61,6 +61,20 @@ function montarCoordinacion(listaId, usuario, nombreDe, alCambiar) {
     return ultimo && ultimo.accion === "marco" ? ultimo.uid : null;
   }
 
+  // recientesMios(minutos) → eventos "marcó" MÍOS de los últimos N minutos que siguen siendo el
+  // último movimiento de ese artículo (más reciente primero). Para "Marcaste hace poco".
+  function recientesMios(minutos) {
+    var limite = Date.now() - minutos * 60 * 1000;
+    var ultimo = {};
+    Object.keys(eventos).forEach(function (k) {
+      var e = eventos[k];
+      if (e && typeof e.ts === "number" && (!ultimo[e.articuloId] || e.ts >= ultimo[e.articuloId].ts)) ultimo[e.articuloId] = e;
+    });
+    return Object.keys(ultimo).map(function (k) { return ultimo[k]; })
+      .filter(function (e) { return e.uid === usuario.uid && e.accion === "marco" && e.ts >= limite; })
+      .sort(function (a, b) { return b.ts - a.ts; });
+  }
+
   function avisarAjenos(nuevos) {
     if (!nuevos.length) return;
     // Por persona: un aviso con el artículo, o con cuántos si fueron varios (p. ej. "marcar todo").
@@ -143,6 +157,7 @@ function montarCoordinacion(listaId, usuario, nombreDe, alCambiar) {
   return {
     agregarEvento: agregarEvento,
     recientePor: recientePor,
+    recientesMios: recientesMios,
     abrirActividad: abrirActividad,
     limpiar: function () {
       detener();

@@ -37,59 +37,90 @@ function hoyLocalISO() {
 }
 
 // ===== Modal =====
-// abrirModal(html, alCerrar): monta un modal genérico. Devuelve { cerrar, elemento }.
+// Pila de modales abiertos: Escape y el clic fuera solo afectan al de ARRIBA (p. ej. la
+// confirmación "¿Guardar cambios?" encima de un formulario), y el scroll de la página se
+// libera solo cuando se cierra el último.
+var _pilaModales = [];
+
+// abrirModal(html, alCerrar, opciones): monta un modal genérico. Devuelve { cerrar, elemento }.
 // alCerrar(motivo) se llama siempre al cerrar ("manual" | "escape" | "fondo" | "programatico").
-function abrirModal(html, alCerrar) {
+// opciones.hayCambios() + opciones.guardar(): si al tocar fuera o con Escape hay cambios sin
+// guardar, NO se cierra: se pregunta Guardar / Descartar / Seguir editando (pedido del
+// usuario: no perder lo capturado por un toque fuera de la ventana).
+function abrirModal(html, alCerrar, opciones) {
+  opciones = opciones || {};
   var fondo = document.createElement("div");
   fondo.className = "fondo-modal";
   fondo.innerHTML = '<div class="caja-modal" role="dialog" aria-modal="true">' + html + "</div>";
   document.body.appendChild(fondo);
   document.body.style.overflow = "hidden";
+  var api;
 
-  function cerrar(motivo) {
+  function cerrarYa(motivo) {
     if (!fondo.isConnected) return;
     fondo.remove();
-    document.body.style.overflow = "";
+    var i = _pilaModales.indexOf(api);
+    if (i !== -1) _pilaModales.splice(i, 1);
+    if (!_pilaModales.length) document.body.style.overflow = "";
     document.removeEventListener("keydown", alTecla);
     if (typeof alCerrar === "function") alCerrar(motivo || "programatico");
   }
 
+  function cerrar(motivo) {
+    if ((motivo === "fondo" || motivo === "escape") && typeof opciones.hayCambios === "function" && opciones.hayCambios()) {
+      confirmarCierreConCambios(opciones.hayCambios, function () { cerrarYa("manual"); }, opciones.guardar);
+      return;
+    }
+    cerrarYa(motivo);
+  }
+
+  function esElDeArriba() {
+    return _pilaModales[_pilaModales.length - 1] === api;
+  }
+
   function alTecla(ev) {
-    if (ev.key === "Escape") cerrar("escape");
+    if (ev.key === "Escape" && esElDeArriba()) cerrar("escape");
   }
 
   fondo.addEventListener("mousedown", function (ev) {
-    if (ev.target === fondo) cerrar("fondo");
+    if (ev.target === fondo && esElDeArriba()) cerrar("fondo");
   });
   document.addEventListener("keydown", alTecla);
+
+  api = { cerrar: cerrar, elemento: fondo };
+  _pilaModales.push(api);
 
   var primerCampo = fondo.querySelector("input, select, textarea, button");
   if (primerCampo) primerCampo.focus();
 
-  return { cerrar: cerrar, elemento: fondo };
+  return api;
 }
 
-// confirmarCierreConCambios(hayCambios, alConfirmar): si el formulario tiene cambios sin
-// guardar, pregunta Guardar/Descartar antes de cerrar; si no, cierra directo.
+// confirmarCierreConCambios(hayCambios, cerrarModal, guardar): si el formulario tiene cambios
+// sin guardar, pregunta Guardar / Descartar / Seguir editando; si no, cierra directo.
+// "Guardar" solo llama guardar(): cada formulario se cierra solo si guarda bien (si falla la
+// validación se queda abierto con su mensaje, en vez de perder lo capturado).
+// Tocar fuera o Escape en esta confirmación = seguir editando.
 function confirmarCierreConCambios(hayCambios, cerrarModal, guardar) {
   if (!hayCambios()) {
     cerrarModal();
     return;
   }
-  abrirModal(
+  var confirmacion = abrirModal(
     '<h3>¿Guardar cambios?</h3><p class="texto-suave">Tienes cambios sin guardar en este formulario.</p>' +
-      '<div class="fila-botones">' +
+      '<div class="fila-botones fila-botones-confirmar">' +
+      '<button type="button" class="btn-texto" data-accion="seguir">Seguir editando</button>' +
       '<button type="button" class="btn btn-secundario" data-accion="descartar">Descartar</button>' +
-      '<button type="button" class="btn" data-accion="guardar">Guardar</button>' +
+      (typeof guardar === "function" ? '<button type="button" class="btn" data-accion="guardar">Guardar</button>' : "") +
       "</div>",
     null
-  ).elemento.addEventListener("click", function (ev) {
+  );
+  confirmacion.elemento.addEventListener("click", function (ev) {
     var accion = ev.target.closest("[data-accion]");
     if (!accion) return;
-    ev.target.closest(".fondo-modal").remove();
-    document.body.style.overflow = "";
+    confirmacion.cerrar("manual");
     if (accion.dataset.accion === "guardar") guardar();
-    cerrarModal();
+    else if (accion.dataset.accion === "descartar") cerrarModal();
   });
 }
 
@@ -213,12 +244,11 @@ function montarBotonAyuda(contenidoHtml) {
     "</button>";
   var boton = ranura.firstChild;
   boton.addEventListener("click", function () {
-    abrirModal('<div class="texto-ayuda">' + contenidoHtml + '</div><div class="fila-botones">' +
-      '<button type="button" class="btn" data-cerrar>Entendido</button></div>', null)
-      .elemento.querySelector("[data-cerrar]").addEventListener("click", function (ev) {
-        ev.target.closest(".fondo-modal").remove();
-        document.body.style.overflow = "";
-      });
+    var ayuda = abrirModal('<div class="texto-ayuda">' + contenidoHtml + '</div><div class="fila-botones">' +
+      '<button type="button" class="btn" data-cerrar>Entendido</button></div>', null);
+    ayuda.elemento.querySelector("[data-cerrar]").addEventListener("click", function () {
+      ayuda.cerrar("manual");
+    });
   });
   return boton;
 }

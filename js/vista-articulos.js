@@ -74,6 +74,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     icono("search", 20) +
     '<input type="text" data-campo-rapido maxlength="130" enterkeyhint="done" ' +
     'placeholder="Busca o agrega: 2 kg tomate" aria-label="Buscar o agregar artículo">' +
+    '<button type="button" class="btn-limpiar-busqueda oculto" data-limpiar-busqueda aria-label="Borrar lo escrito" title="Borrar lo escrito">' + icono("x", 20) + "</button>" +
     '<button type="submit" class="btn-agregar-rapido" aria-label="Agregar artículo" title="Agregar artículo">' + icono("plus", 22) + "</button>" +
     "</form>" +
     '<div class="acciones-lista" data-acciones></div>' +
@@ -105,6 +106,10 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
   var zonaArticulos = contenedor.querySelector("[data-articulos]");
   var formRapido = contenedor.querySelector("[data-form-rapido]");
   var campoRapido = contenedor.querySelector("[data-campo-rapido]");
+  var botonLimpiar = contenedor.querySelector("[data-limpiar-busqueda]");
+  function actualizarBotonLimpiar() {
+    botonLimpiar.classList.toggle("oculto", !campoRapido.value);
+  }
   var pestanasVista = ranuraPestanas.querySelectorAll("[data-vista]");
 
   // ===== Pintado =====
@@ -325,8 +330,9 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
 
       var grupos = agruparArticulos(articulos, info.ordenCategorias, { soloPendientes: vista === "pendientes" });
       pintarIndice(grupos);
+      var recientes = vista === "pendientes" ? seccionRecientes() : "";
       if (vista === "pendientes" && grupos.length === 0) {
-        zonaArticulos.innerHTML =
+        zonaArticulos.innerHTML = recientes +
           '<div class="tarjeta tarjeta-vacia">' +
           '<span class="circulo-vacio" aria-hidden="true">' + icono("check", 28) + "</span>" +
           '<p class="titulo-vacio">Nada por comprar</p>' +
@@ -334,8 +340,36 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
           '<button type="button" class="btn btn-secundario" data-ir-vista="todo">Ver toda la lista</button></div>';
         return;
       }
-      zonaArticulos.innerHTML = pintarGrupos(grupos);
+      zonaArticulos.innerHTML = pintarGrupos(grupos) + recientes;
     });
+  }
+
+  // "Marcaste hace poco": red de seguridad para un toque equivocado en la tienda (el artículo
+  // desaparece de "Por comprar"). Sale del registro de actividad: lo que YO marqué en los
+  // últimos 15 min y sigue marcado. A diferencia del toast con Deshacer, no se pierde si llega
+  // otro aviso ni al recargar.
+  var MINUTOS_RECIENTES = 15;
+  function seccionRecientes() {
+    if (!coordinacion) return "";
+    var lista = coordinacion.recientesMios(MINUTOS_RECIENTES).filter(function (e) {
+      return articulos[e.articuloId] && articulos[e.articuloId].comprado;
+    }).slice(0, 5);
+    if (!lista.length) return "";
+    return (
+      '<section class="recien-marcados" aria-label="Marcaste hace poco">' +
+      '<h2 class="titulo-recientes">' + icono("history", 18) + "Marcaste hace poco</h2>" +
+      '<ul class="lista-articulos">' + lista.map(function (e) {
+        var a = articulos[e.articuloId];
+        return (
+          '<li class="fila-reciente">' +
+          '<span class="casilla-circulo casilla-hecha" aria-hidden="true">' + icono("check", 16) + "</span>" +
+          '<span class="nombre-reciente">' + esc(a.nombre) + "</span>" +
+          '<button type="button" class="btn-texto" data-regresar="' + esc(e.articuloId) + '" aria-label="' + esc("Regresar " + a.nombre + " a Por comprar") + '">' +
+          icono("refresh-cw", 16) + "<span>Regresar</span></button>" +
+          "</li>"
+        );
+      }).join("") + "</ul></section>"
+    );
   }
 
   function pintarEditorPrecios() {
@@ -649,7 +683,9 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         '<button type="submit" class="btn-accion-icono btn-accion-primario" aria-label="Guardar" title="Guardar">' + icono("save", 20) + "</button>" +
         "</div>" +
         "</form>",
-      null
+      null,
+      // Tocar fuera / Escape con cambios: preguntar en vez de perder lo capturado.
+      { hayCambios: function () { return hayCambios(); }, guardar: function () { guardar(); } }
     );
     var form = modal.elemento.querySelector("[data-form-articulo]");
     var errorEl = modal.elemento.querySelector("[data-error]");
@@ -740,7 +776,8 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         '<button type="button" class="btn btn-secundario" data-cancelar>Cancelar</button>' +
         '<button type="button" class="btn" data-importar disabled>Importar</button>' +
         "</div>",
-      null
+      null,
+      { hayCambios: function () { return !!area.value.trim(); }, guardar: function () { importar(); } }
     );
     var area = modal.elemento.querySelector("#texto-importar");
     var previa = modal.elemento.querySelector("[data-vista-previa]");
@@ -875,12 +912,23 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
   campoRapido.addEventListener("input", function () {
     filtro = campoRapido.value.trim();
     editorPintado = false;
+    actualizarBotonLimpiar();
     pintar();
   });
 
   // El "+" del campo es la acción de agregar de esta pantalla (no hay botón "+" aparte en la
   // barra inferior: con las 4 pestañas y los 3 controles globales no cabe en un iPhone).
   // Con texto agrega rápido; vacío abre el formulario completo.
+  // (X) del campo: borra todo lo escrito de un toque (pedido del usuario) y deja el foco.
+  botonLimpiar.addEventListener("click", function () {
+    campoRapido.value = "";
+    filtro = "";
+    editorPintado = false;
+    actualizarBotonLimpiar();
+    pintar();
+    campoRapido.focus();
+  });
+
   formRapido.addEventListener("submit", function (ev) {
     ev.preventDefault();
     var texto = campoRapido.value.trim();
@@ -890,12 +938,21 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     }
     campoRapido.value = "";
     filtro = "";
+    actualizarBotonLimpiar();
     agregarRapido(texto);
     pintar();
     campoRapido.focus(); // para seguir agregando sin volver a tocar el campo
   });
 
   contenedor.addEventListener("click", function (ev) {
+    var regresarBtn = ev.target.closest("[data-regresar]");
+    if (regresarBtn) {
+      var idR = regresarBtn.dataset.regresar;
+      escribirArticulo(idR, { comprado: false, compradoPor: null }, "desmarco")
+        .then(function () { mostrarToast((articulos[idR] || {}).nombre + " regresó a Por comprar"); })
+        .catch(fallo("No se pudo regresar el artículo"));
+      return;
+    }
     var cantidadBtn = ev.target.closest("[data-cantidad]");
     if (cantidadBtn) {
       if (!cantidadBtn.disabled) cambiarCantidad(cantidadBtn.dataset.id, Number(cantidadBtn.dataset.cantidad));

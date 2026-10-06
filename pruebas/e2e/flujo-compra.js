@@ -116,6 +116,14 @@ async function flujo(browser, ancho, modo) {
   await page.fill("[data-campo-rapido]", "lech");
   await pausa(page);
   assert.deepEqual((await nombresVisibles(page)).sort(), ["Leche Deslactosada 3 de las grises alpura", "Leche Entera 2 Santa Clara", "Lechuga"]);
+  // (X) borra todo lo escrito de un toque y deja el foco en el campo.
+  assert.equal(await page.isVisible("[data-limpiar-busqueda]"), true, "(X) visible con texto");
+  await page.click("[data-limpiar-busqueda]");
+  await pausa(page);
+  assert.equal(await page.inputValue("[data-campo-rapido]"), "");
+  assert.equal(await page.isVisible("[data-limpiar-busqueda]"), false, "(X) oculto sin texto");
+  assert.ok(await page.evaluate(() => document.activeElement.matches("[data-campo-rapido]")));
+  assert.equal((await nombresVisibles(page)).length, 171, "sin filtro: vuelve la lista completa");
   await page.fill("[data-campo-rapido]", "2 kg tomate");
   await page.press("[data-campo-rapido]", "Enter");
   await pausa(page);
@@ -278,6 +286,18 @@ async function flujo(browser, ancho, modo) {
   await page.click(".toast:last-child button");
   await pausa(page);
   assert.ok((await nombresVisibles(page)).includes("Plátanos"), "Deshacer regresa el artículo");
+  // "Marcaste hace poco": marcar Mangos (sin usar el toast) y regresarlo desde ahí.
+  await page.click('[aria-label="Marcar Mangos como comprado"]');
+  await pausa(page);
+  assert.ok(!(await nombresVisibles(page)).includes("Mangos"), "Mangos sale de Por comprar");
+  assert.match(await page.textContent(".recien-marcados"), /Marcaste hace poco[\s\S]*Mangos/);
+  await page.screenshot({ path: path.join(CAPTURAS, "recien-marcados-" + ancho + "-" + modo + ".png") });
+  await page.click('[aria-label="Regresar Mangos a Por comprar"]');
+  await pausa(page);
+  assert.ok((await nombresVisibles(page)).includes("Mangos"), "Regresar lo devuelve a Por comprar");
+  assert.equal(await page.$(".recien-marcados"), null, "y sale de 'Marcaste hace poco'");
+  const actMangos = Object.values(await leerBD(page, "listas/" + listaId + "/actividad")).filter((e) => e.articulo === "Mangos").map((e) => e.accion);
+  assert.deepEqual(actMangos.slice(-2), ["marco", "desmarco"], "queda en el registro");
   await page.screenshot({ path: path.join(CAPTURAS, "por-comprar-" + ancho + "-" + modo + ".png") });
 
   // 9. Marcar todo (1 escritura) y Deshacer.
@@ -322,7 +342,56 @@ async function flujo(browser, ancho, modo) {
   await page.click('[data-form-articulo] button[type="submit"]');
   await pausa(page);
   assert.match(await page.textContent("[data-error]"), /mayor que 0/);
+  // Con cambios, Escape ya no cierra directo: pregunta; se descarta.
   await page.keyboard.press("Escape");
+  await pausa(page);
+  await page.click('[data-accion="descartar"]');
+  await pausa(page);
+
+  // 12b. Tocar fuera o Escape con cambios NO cierra: pregunta Guardar / Descartar / Seguir.
+  const tocarFuera = async () => page.mouse.click(5, 5); // el fondo del modal, fuera de la caja
+  const modales = () => page.$$eval(".fondo-modal", (m) => m.length);
+  await page.click('[aria-label="Editar Mangos"]');
+  await tocarFuera();
+  await pausa(page);
+  assert.equal(await modales(), 0, "sin cambios, tocar fuera cierra");
+  await page.click('[aria-label="Editar Mangos"]');
+  await page.fill("#art-notas", "de Manila");
+  await tocarFuera();
+  await pausa(page);
+  assert.equal(await modales(), 2, "con cambios, tocar fuera pregunta (formulario + confirmación)");
+  await page.click('[data-accion="seguir"]');
+  await pausa(page);
+  assert.equal(await modales(), 1);
+  assert.equal(await page.inputValue("#art-notas"), "de Manila", "seguir editando conserva lo escrito");
+  await page.keyboard.press("Escape");
+  await pausa(page);
+  assert.equal(await modales(), 2, "Escape con cambios también pregunta");
+  await page.keyboard.press("Escape"); // Escape en la confirmación = seguir editando
+  await pausa(page);
+  assert.equal(await modales(), 1, "solo se cierra la de arriba");
+  await tocarFuera();
+  await pausa(page);
+  await page.click('[data-accion="guardar"]');
+  await pausa(page);
+  assert.equal(await modales(), 0);
+  assert.equal((Object.values(await leerBD(page, "listas/" + listaId + "/articulos")).find((a) => a.nombre === "Mangos")).notas, "de Manila", "Guardar desde la confirmación guarda");
+  // Guardar con un dato inválido desde la confirmación: el formulario se queda abierto con su error.
+  await page.click('[aria-label="Editar Mangos"]');
+  await page.fill("#art-cantidad", "0");
+  await tocarFuera();
+  await pausa(page);
+  await page.click('[data-accion="guardar"]');
+  await pausa(page);
+  assert.equal(await modales(), 1, "inválido: se queda abierto");
+  assert.match(await page.textContent("[data-error]"), /mayor que 0/);
+  await tocarFuera();
+  await pausa(page);
+  await page.click('[data-accion="descartar"]');
+  await pausa(page);
+  assert.equal(await modales(), 0, "Descartar cierra");
+  assert.equal((Object.values(await leerBD(page, "listas/" + listaId + "/articulos")).find((a) => a.nombre === "Mangos")).cantidad, 1, "sin guardar el 0");
+  paso("formularios: tocar fuera/Escape con cambios pregunta; inválido no se pierde");
 
   // 13. Importar otra vez la misma nota no duplica nada.
   await page.click('[data-vista="todo"]');

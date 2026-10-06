@@ -70,6 +70,14 @@ en npm es `12.19.0`, ver §7).
   **salieron de la barra** mientras no existan: con ellos son 8 controles ≈ 372 px y no caben
   con objetivos de 44 px. Al construir la Fase 3/4, decidir con el usuario dónde van (p. ej.
   un control "Más"). Tampoco hay "+" aparte: agregar es el "+" del campo rápido.
+- **Formularios: tocar fuera o Escape con cambios NO cierra** — `abrirModal(html, alCerrar,
+  { hayCambios, guardar })` pregunta Guardar / Descartar / Seguir editando. Hay pila de modales
+  (Escape y clic fuera solo afectan al de arriba). "Guardar" solo llama `guardar()`: cada
+  formulario se cierra solo si guarda bien (si la validación falla, se queda abierto). Todo
+  formulario nuevo debe pasar `hayCambios`/`guardar`.
+- **Deshacer en "Por comprar"**: además del toast, la sección "Marcaste hace poco" (lo que YO
+  marqué en 15 min, desde el registro de actividad) con "Regresar"; no se pierde si llega otro
+  aviso ni al recargar.
 - **Un solo toast a la vez** (`mostrarToast` reemplaza el anterior). Los toasts van
   **debajo** de los modales (z-index 90 < 100) y encima de la barra (40).
 - **Colores solo por tokens**: todo hex vive en `:root` o `:root[data-modo="oscuro"]` de

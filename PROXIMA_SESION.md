@@ -6,7 +6,13 @@
 > de verdad técnica (esa es `AGENTS.md`), pero sigue teniendo el detalle completo de cada
 > fase y el modelo de datos.
 
-## Estado actual: multiusuario (roles, invitaciones, coordinación) — 2026-10-06
+## Estado actual: v18 en `main` (2026-10-06)
+
+- v18: "Marcaste hace poco" + Regresar en Por comprar; formularios protegidos contra cierre
+  accidental (tocar fuera / Escape con cambios pregunta); (X) en la búsqueda.
+- v17: multiusuario (abajo).
+
+## Multiusuario (roles, invitaciones, coordinación) — v17, 2026-10-06
 
 - Roles de la app (admin raíz `dmgerardo@gmail.com` + admins por rol, participantes,
   invitados, activo/desactivado), pantalla `usuarios.html`, invitaciones por liga (1 uso, 7

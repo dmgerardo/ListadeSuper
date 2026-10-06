@@ -1011,6 +1011,38 @@ code { font-size: 0.9em; background: var(--color-segmento); padding: 0 4px; bord
 .acciones-lista .boton-actividad { margin-right: auto; }
 .tarjeta-unirse { margin-top: 24px; }
 
+/* (X) para borrar la búsqueda de un toque. */
+.btn-limpiar-busqueda {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-texto-suave);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.btn-limpiar-busqueda:hover { background: var(--color-segmento); color: var(--color-texto); }
+/* "Marcaste hace poco" al final de Por comprar. */
+.recien-marcados { margin-top: 18px; }
+.titulo-recientes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 4px 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-texto-suave);
+}
+.fila-reciente { display: flex; align-items: center; gap: 12px; padding: 4px 4px 4px 14px; }
+.fila-reciente + .fila-reciente { box-shadow: inset 0 1px 0 var(--color-fondo); }
+.nombre-reciente { flex: 1; min-width: 0; color: var(--color-texto-suave); overflow-wrap: anywhere; }
+.casilla-hecha { background: var(--color-primario); border-color: var(--color-primario); color: var(--color-texto-sobre-primario); flex: none; }
+.fila-botones-confirmar { flex-wrap: wrap; }
+
 /* ===== Utilidades ===== */
 .texto-suave { color: var(--color-texto-suave); }
 .oculto { display: none !important; }
