@@ -76,14 +76,35 @@
   }
   function notificar() {
     persistir();
+    // Como Firebase: un oyente "value" solo se llama si SU valor cambió (si no, p. ej. el de
+    // .info/connected se dispararía con cada escritura y la presencia se re-anunciaría en ciclo).
     oyentes.slice().forEach(function (o) {
       setTimeout(function () {
-        if (oyentes.indexOf(o) !== -1) o.cb(instantanea(o.ruta));
+        if (oyentes.indexOf(o) === -1) return;
+        var snap = instantanea(o.ruta, o.filtro);
+        var firma = JSON.stringify(snap.val());
+        if (firma === o.ultimo) return;
+        o.ultimo = firma;
+        o.cb(snap);
       }, 0);
     });
   }
-  function instantanea(ruta) {
-    var v = leer(ruta);
+  // filtro: { hijo, hasta, ultimos } para orderByChild(hijo).endAt(hasta).limitToLast(ultimos).
+  function filtrar(v, filtro) {
+    if (!filtro || !v || typeof v !== "object") return v;
+    var claves = Object.keys(v).filter(function (k) {
+      var x = v[k] && v[k][filtro.hijo];
+      return filtro.hasta === undefined || (typeof x === "number" && x <= filtro.hasta);
+    });
+    claves.sort(function (a, b) { return ((v[a] || {})[filtro.hijo] || 0) - ((v[b] || {})[filtro.hijo] || 0); });
+    if (filtro.ultimos) claves = claves.slice(-filtro.ultimos);
+    var r = {};
+    claves.forEach(function (k) { r[k] = v[k]; });
+    return claves.length ? r : null;
+  }
+  function instantanea(ruta, filtro) {
+    // .info/connected: el mock siempre está "conectado".
+    var v = ruta === ".info/connected" ? true : filtrar(leer(ruta), filtro);
     return { key: partes(ruta).pop() || null, val: function () { return clonar(v); }, exists: function () { return v !== null; } };
   }
   function unir(base, rel) {
@@ -93,6 +114,30 @@
   function llavePush() {
     contadorPush++;
     return "-M" + Date.now().toString(36).padStart(9, "0") + String(contadorPush).padStart(6, "0");
+  }
+
+  // Consulta mínima: orderByChild(hijo) + endAt(valor) + limitToLast(n) (lo que usa la app).
+  function consulta(ruta, filtro) {
+    return {
+      toString: function () { return "mock://" + ruta; },
+      endAt: function (v) { return consulta(ruta, Object.assign({}, filtro, { hasta: v })); },
+      limitToLast: function (n) { return consulta(ruta, Object.assign({}, filtro, { ultimos: n })); },
+      on: function (ev, cb) {
+        var o = { ruta: ruta, cb: cb, filtro: filtro };
+        oyentes.push(o);
+        setTimeout(function () {
+          if (oyentes.indexOf(o) === -1) return;
+          var snap = instantanea(ruta, filtro);
+          o.ultimo = JSON.stringify(snap.val());
+          cb(snap);
+        }, 5);
+        return cb;
+      },
+      off: function (ev, cb) {
+        oyentes = oyentes.filter(function (o) { return !(o.ruta === ruta && (!cb || o.cb === cb)); });
+      },
+      once: function () { return Promise.resolve(instantanea(ruta, filtro)); }
+    };
   }
 
   function ref(ruta) {
@@ -105,13 +150,35 @@
       on: function (ev, cb) {
         var o = { ruta: ruta, cb: cb };
         oyentes.push(o);
-        setTimeout(function () { if (oyentes.indexOf(o) !== -1) cb(instantanea(ruta)); }, 5);
+        setTimeout(function () {
+          if (oyentes.indexOf(o) === -1) return;
+          var snap = instantanea(ruta);
+          o.ultimo = JSON.stringify(snap.val());
+          cb(snap);
+        }, 5);
         return cb;
       },
       off: function (ev, cb) {
         oyentes = oyentes.filter(function (o) { return !(o.ruta === ruta && (!cb || o.cb === cb)); });
       },
       once: function () { return Promise.resolve(instantanea(ruta)); },
+      orderByChild: function (hijo) { return consulta(ruta, { hijo: hijo }); },
+      onDisconnect: function () {
+        return {
+          remove: function () { return Promise.resolve(); },
+          set: function () { return Promise.resolve(); },
+          cancel: function () { return Promise.resolve(); }
+        };
+      },
+      // transaction(fn): fn(valorActual) → nuevo valor, o undefined para cancelar.
+      transaction: function (fn) {
+        var nuevo = fn(leer(ruta));
+        if (nuevo === undefined) return Promise.resolve({ committed: false, snapshot: instantanea(ruta) });
+        escrituras.push({ tipo: "transaction", ruta: ruta });
+        escribir(ruta, nuevo);
+        notificar();
+        return Promise.resolve({ committed: true, snapshot: instantanea(ruta) });
+      },
       set: function (v) {
         escrituras.push({ tipo: "set", ruta: ruta });
         escribir(ruta, v);
@@ -134,6 +201,10 @@
   }
 
   var usuario = window.__USUARIO_MOCK || null;
+  try {
+    var otro = sessionStorage.getItem("__usuarioMock");
+    if (otro) usuario = JSON.parse(otro);
+  } catch (e) {}
   var oyentesAuth = [];
   var auth = {
     onAuthStateChanged: function (cb) { oyentesAuth.push(cb); setTimeout(function () { cb(usuario); }, 0); },
@@ -147,6 +218,11 @@
   window.__mockBD = {
     leer: leer,
     escrituras: escrituras,
+    // Simula que OTRA persona escribe (multi-ruta), para probar avisos en vivo.
+    escribirComoOtro: function (cambios) {
+      Object.keys(cambios).forEach(function (k) { escribir(k, cambios[k]); });
+      notificar();
+    },
     sembrar: function (datos) { arbol = clonar(datos) || {}; notificar(); }
   };
   window.firebase = {

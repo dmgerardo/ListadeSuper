@@ -68,6 +68,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     // Índice de pasillos arriba y fijo (sticky) al hacer scroll: pedido del usuario, para
     // navegar una lista de ~170 artículos sin regresar hasta arriba.
     '<nav class="indice-pasillos" data-indice aria-label="Ir a un pasillo"></nav>' +
+    '<div class="fila-miembros" data-fila-miembros></div>' +
     '<section class="tarjeta-resumen" data-resumen aria-live="polite" aria-label="Resumen de la lista"></section>' +
     '<form class="campo-rapido" data-form-rapido autocomplete="off">' +
     icono("search", 20) +
@@ -138,6 +139,11 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     var cantidad = textoCantidad(a.cantidad, a.unidad);
     if (cantidad && !conContador) detalle.push(esc(cantidad));
     if (a.notas) detalle.push('<span class="notas-articulo">' + esc(a.notas) + "</span>");
+    // Quién lo marcó durante esta compra (registro de las últimas 24 h), si no fui yo.
+    var porQuien = a.comprado && coordinacion ? coordinacion.recientePor(a.id) : null;
+    if (porQuien && porQuien !== usuario.uid && miembrosLista) {
+      detalle.push('<span class="por-quien">' + icono("check", 12) + " por " + esc(miembrosLista.nombreDe(porQuien)) + "</span>");
+    }
     var precio = "";
     if (typeof a.precio === "number") {
       var n = typeof a.cantidad === "number" ? a.cantidad : 1;
@@ -273,12 +279,15 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
 
       // Acciones según la vista (se ocultan mientras se busca, para no distraer).
       var acciones = "";
+      var botonActividad = '<button type="button" class="btn-texto enlace-con-icono boton-actividad" data-accion="actividad">' +
+        icono("history", 18) + "<span>Actividad</span></button>";
       if (!filtro) {
+        acciones = botonActividad;
         if (vista === "pendientes" && t.pendientes > 0) {
-          acciones = '<button type="button" class="btn-texto enlace-con-icono" data-accion="marcar-todo">' +
+          acciones += '<button type="button" class="btn-texto enlace-con-icono" data-accion="marcar-todo">' +
             icono("check-check", 18) + "<span>Marcar todo como comprado</span></button>";
         } else if (vista === "todo") {
-          acciones =
+          acciones +=
             '<button type="button" class="btn-texto enlace-con-icono" data-accion="editar-precios">' +
             icono("pencil", 18) + "<span>Unidades y precios</span></button>" +
             '<button type="button" class="btn-texto enlace-con-icono" data-accion="importar">' +
@@ -363,6 +372,17 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     };
   }
 
+  // escribirArticulo(id, campos, accion): campos del artículo + (si accion) el evento de
+  // actividad, en UNA escritura multi-ruta. accion: "marco" | "desmarco" | null.
+  function escribirArticulo(id, campos, accion) {
+    var cambios = {};
+    Object.keys(campos).forEach(function (k) {
+      cambios[rutaArticulo(id) + "/" + k] = campos[k];
+    });
+    if (accion && coordinacion) coordinacion.agregarEvento(cambios, id, (articulos[id] || {}).nombre, accion);
+    return actualizarMultiple(cambios);
+  }
+
   // alternar(id): marcar ↔ desmarcar, campo por campo. En "Por comprar" el artículo
   // desaparece al marcarlo, así que ahí se ofrece Deshacer (un toque equivocado en la tienda
   // es fácil); en "Toda la lista" el cambio se ve en su lugar y no hace falta.
@@ -371,30 +391,36 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     if (!a) return;
     var antes = { comprado: !!a.comprado, compradoPor: a.compradoPor || null };
     var ahora = !a.comprado;
-    actualizar(refArticulo(id), { comprado: ahora, compradoPor: ahora ? usuario.uid : null })
+    escribirArticulo(id, { comprado: ahora, compradoPor: ahora ? usuario.uid : null }, ahora ? "marco" : "desmarco")
       .catch(fallo("No se pudo guardar el cambio"));
     if (vista === "pendientes" && !filtro && ahora) {
       mostrarToast(a.nombre + " marcado", {
         accion: {
           etiqueta: "Deshacer",
           alActivar: function () {
-            actualizar(refArticulo(id), antes).catch(fallo("No se pudo deshacer"));
+            escribirArticulo(id, antes, antes.comprado ? "marco" : "desmarco").catch(fallo("No se pudo deshacer"));
           }
         }
       });
     }
   }
 
-  // (+)/(−): una escritura de campo (cantidad) por toque. Sin toast: el cambio se ve en el
+  // (+)/(−): TRANSACCIÓN sobre la cantidad. Si dos personas tocan "+" a la vez sobre
+  // "2 pzas", Firebase reintenta con el valor real del servidor y quedan 4 (con una escritura
+  // simple las dos escribirían 3 y se perdería un toque). Sin toast: el cambio se ve en el
   // contador y se deshace con el botón contrario.
   function cambiarCantidad(id, direccion) {
     var a = articulos[id];
     if (!a) return;
-    var nueva = siguienteCantidad(a.cantidad, a.unidad, direccion);
-    if (nueva === null) return;
-    var cambios = { cantidad: nueva };
-    if (!a.unidad) cambios.unidad = "pieza";
-    actualizar(refArticulo(id), cambios).catch(fallo("No se pudo cambiar la cantidad"));
+    var unidad = a.unidad || "pieza";
+    if (siguienteCantidad(a.cantidad, unidad, direccion) === null) return;
+    if (!a.unidad) actualizar(refArticulo(id), { unidad: "pieza" }).catch(function () {});
+    refArticulo(id).child("cantidad").transaction(function (actual) {
+      // null en el primer intento puede ser solo el caché local: se asume 1 y, si el servidor
+      // tenía otro valor, Firebase vuelve a llamar con el real.
+      var nueva = siguienteCantidad(actual === null ? 1 : actual, unidad, direccion);
+      return nueva === null ? undefined : nueva; // undefined = cancelar
+    }).catch(fallo("No se pudo cambiar la cantidad"));
   }
 
   // Marca breve de "guardado" en el campo (sin toast: serían cientos de avisos).
@@ -489,7 +515,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         return;
       }
       var antes = { comprado: !!a.comprado, compradoPor: a.compradoPor || null, cantidad: a.cantidad === undefined ? null : a.cantidad, unidad: a.unidad || null };
-      actualizar(refArticulo(existente), cambios).catch(fallo("No se pudo guardar el cambio"));
+      escribirArticulo(existente, cambios, a.comprado ? "desmarco" : null).catch(fallo("No se pudo guardar el cambio"));
       mostrarToast(a.nombre + " está por comprar", {
         accion: {
           etiqueta: "Deshacer",
@@ -499,7 +525,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
               revertir.cantidad = antes.cantidad;
               revertir.unidad = antes.unidad;
             }
-            actualizar(refArticulo(existente), revertir).catch(fallo("No se pudo deshacer"));
+            escribirArticulo(existente, revertir, antes.comprado ? "marco" : null).catch(fallo("No se pudo deshacer"));
           }
         }
       });
@@ -543,6 +569,10 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       cambios[rutaArticulo(id) + "/compradoPor"] = usuario.uid;
       revertir[rutaArticulo(id) + "/comprado"] = false;
       revertir[rutaArticulo(id) + "/compradoPor"] = articulos[id].compradoPor || null;
+      if (coordinacion) {
+        coordinacion.agregarEvento(cambios, id, articulos[id].nombre, "marco");
+        coordinacion.agregarEvento(revertir, id, articulos[id].nombre, "desmarco");
+      }
     });
     actualizarMultiple(cambios)
       .then(function () {
@@ -885,6 +915,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     if (accion) {
       if (accion.dataset.accion === "marcar-todo") marcarTodo();
       if (accion.dataset.accion === "importar") abrirImportar();
+      if (accion.dataset.accion === "actividad" && coordinacion) coordinacion.abrirActividad();
       if (accion.dataset.accion === "editar-precios") {
         modoPrecios = true;
         repintarEditor();
@@ -944,6 +975,12 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     }
     pintar();
   });
+  // Miembros, presencia y coordinación (registro de actividad + avisos de los demás).
+  var miembrosLista = montarMiembrosLista(contenedor.querySelector("[data-fila-miembros]"), listaId, usuario, function () { return info; });
+  var coordinacion = montarCoordinacion(listaId, usuario, miembrosLista.nombreDe, function () {
+    if (!modoPrecios) pintar(); // para los "por Ana"
+  });
+
   detenerArticulos = escuchar(refArticulos, function (valor) {
     articulos = valor || {};
     pintar();
@@ -962,6 +999,8 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     if (detenerArticulos) detenerArticulos();
     clearTimeout(temporizadorSinAcceso);
     window.removeEventListener("scroll", alHacerScroll);
+    miembrosLista.limpiar();
+    coordinacion.limpiar();
     ranuraPestanas.removeEventListener("click", alTocarPestana);
     vaciarRanura("pestanas");
     vaciarRanura("principal");

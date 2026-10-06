@@ -262,9 +262,10 @@ function conectarSelectorTema(contenedor) {
   });
 }
 
-// montarMenuCuenta(usuario): foto del usuario en la barra; al tocarla abre una hoja con su
-// nombre, correo y "Cerrar sesión". Con usuario null, quita el control.
-function montarMenuCuenta(usuario) {
+// montarMenuCuenta(usuario, rol): foto del usuario en la barra; al tocarla abre una hoja con
+// su nombre, correo, rol, apariencia y "Cerrar sesión" (y "Administrar usuarios" si es
+// administrador). rol = rolEfectivo() de roles.js (opcional). Con usuario null, lo quita.
+function montarMenuCuenta(usuario, rol) {
   var ranura = ranuraBarra("cuenta");
   if (!usuario) {
     ranura.innerHTML = "";
@@ -291,8 +292,15 @@ function montarMenuCuenta(usuario) {
           ? '<img class="foto-cuenta foto-cuenta-grande" src="' + esc(urlSegura(usuario.photoURL)) + '" alt="" width="56" height="56" referrerpolicy="no-referrer">'
           : "") +
         "<div><h3>" + esc(usuario.displayName || "Mi cuenta") + "</h3>" +
-        '<p class="texto-suave">' + esc(usuario.email || "") + "</p></div>" +
+        '<p class="texto-suave">' + esc(usuario.email || "") + "</p>" +
+        (rol ? '<p class="pildora-rol' + (rol.esAdmin ? " pildora-rol-admin" : "") + '">' +
+          esc((typeof ETIQUETAS_ROL !== "undefined" && ETIQUETAS_ROL[rol.rol]) || rol.rol) +
+          (rol.esRaiz ? " (raíz)" : "") + (rol.activo ? "" : " · desactivada") + "</p>" : "") +
         "</div>" +
+        "</div>" +
+        (rol && rol.esAdmin
+          ? '<a class="btn btn-secundario btn-ancho-completo enlace-admin" href="usuarios.html">' + icono("users", 18) + "<span>Administrar usuarios</span></a>"
+          : "") +
         selectorTema() +
         '<div class="fila-botones">' +
         '<button type="button" class="btn btn-secundario" data-cerrar>Cerrar</button>' +

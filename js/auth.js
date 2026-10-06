@@ -62,8 +62,17 @@ function requerirSesion(cb) {
       cb(null);
       return;
     }
+    // Perfil y rol (invitado si es la primera vez) antes de mostrar nada: las reglas exigen
+    // roles/{uid} para casi todo. asegurarRol vive en roles.js (se carga después, pero esto
+    // corre ya con todos los scripts cargados).
     _crearOActualizarPerfil(usuario)
       .catch(function () {})
+      .then(function () {
+        return asegurarRol(usuario);
+      })
+      .catch(function (e) {
+        console.error("No se pudo registrar el rol", e);
+      })
       .then(function () {
         cb(usuario);
       });

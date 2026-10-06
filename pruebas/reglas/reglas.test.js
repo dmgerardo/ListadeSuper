@@ -15,15 +15,33 @@ const { ref, get, set, update, remove } = require("firebase/database");
 let entorno;
 const L1 = "L1";
 
-// alice = dueña de L1, bob = editor de L1, carol = sin relación con L1.
+// alice = participante, dueña de L1; bob = INVITADO (sin autorizar) y editor de L1;
+// carol y dave = participantes sin relación con L1; eve = invitada sin relación;
+// zoe = participante DESACTIVADA, editora de L1; adminA = administrador por rol.
+// "raiz" = la cuenta de ADMIN_RAIZ (dmgerardo@gmail.com, correo verificado).
+const ROLES = {
+  alice: { rol: "participante", activo: true },
+  bob: { rol: "invitado", activo: true },
+  carol: { rol: "participante", activo: true },
+  dave: { rol: "participante", activo: true },
+  eve: { rol: "invitado", activo: true },
+  zoe: { rol: "participante", activo: false },
+  adminA: { rol: "admin", activo: true },
+};
+const AHORA = Date.now();
 function semilla() {
   return {
-    usuarios: { alice: { nombre: "Alice" } },
+    roles: ROLES,
+    usuarios: { alice: { nombre: "Alice" }, bob: { nombre: "Bob" } },
     listasDeUsuario: { alice: { L1: true }, bob: { L1: true } },
     listas: {
       L1: {
         info: { nombre: "Súper", moneda: "MXN", creadaPor: "alice", creada: 1 },
-        miembros: { alice: { rol: "dueno" }, bob: { rol: "editor" } },
+        miembros: { alice: { rol: "dueno" }, bob: { rol: "editor" }, zoe: { rol: "editor" } },
+        actividad: {
+          viejo: { uid: "alice", nombre: "Alice", accion: "marco", articuloId: "a1", articulo: "Leche", ts: AHORA - 25 * 3600 * 1000 },
+          reciente: { uid: "alice", nombre: "Alice", accion: "marco", articuloId: "a1", articulo: "Leche", ts: AHORA - 60 * 1000 },
+        },
         articulos: {
           a1: { nombre: "Leche", categoria: "refris", comprado: true, compradoPor: "alice", agregadoPor: "alice", creado: 1 },
         },
@@ -33,6 +51,20 @@ function semilla() {
 }
 
 const bd = (uid) => (uid ? entorno.authenticatedContext(uid) : entorno.unauthenticatedContext()).database();
+const bdRaiz = (verificado = true) => entorno.authenticatedContext("raiz", { email: "dmgerardo@gmail.com", email_verified: verificado }).database();
+const CODIGO = "c".repeat(22);
+const invitacion = (extra) => Object.assign({ listaId: "L1", listaNombre: "Súper", creadaPor: "bob", creadaPorNombre: "Bob", creada: AHORA, expira: AHORA + 6 * 24 * 3600 * 1000 }, extra);
+async function sembrar(ruta, valor) {
+  await entorno.withSecurityRulesDisabled((ctx) => set(ref(ctx.database(), ruta), valor));
+}
+// Unirse = UNA escritura multi-ruta: miembro + marcar invitación usada + índice propio.
+const unirse = (uid, codigo = CODIGO, lista = "L1", marcar = true) => {
+  const c = {};
+  c["listas/" + lista + "/miembros/" + uid] = { rol: "editor", nombre: uid, codigo };
+  if (marcar) c["invitaciones/" + codigo + "/usadaPor"] = uid;
+  c["listasDeUsuario/" + uid + "/" + lista] = true;
+  return update(ref(bd(uid)), c);
+};
 // withSecurityRulesDisabled no devuelve el valor del callback: se captura aquí.
 async function leerSinReglas(ruta) {
   let valor;
@@ -93,9 +125,9 @@ test("no-miembro no se puede auto-agregar como dueño ni como editor sin invitac
   await assertFails(set(ref(bd("carol"), "listas/L1/miembros/carol"), { rol: "editor", codigo: "inventado" }));
 });
 
-test("solo la dueña renombra la lista", async () => {
+test("renombrar: dueño y editores sí (ver 'editor renombra…'); no-miembro no; nombre ≤ 80", async () => {
   await assertSucceeds(update(ref(bd("alice"), "listas/L1/info"), { nombre: "Súper semanal" }));
-  await assertFails(update(ref(bd("bob"), "listas/L1/info"), { nombre: "Hackeada" }));
+  await assertFails(update(ref(bd("carol"), "listas/L1/info"), { nombre: "Ajena" }));
   await assertFails(update(ref(bd("alice"), "listas/L1/info"), { nombre: "x".repeat(81) }));
 });
 
@@ -191,4 +223,165 @@ test("marcar todo = UNA escritura multi-ruta; si un artículo es inválido, no s
   }));
   const valor = await leerSinReglas("listas/L1/articulos/a2/comprado");
   assert.equal(valor, false); // atómico: nada cambió
+});
+
+// ===== Roles de la aplicación =====
+
+test("un usuario nuevo solo se da de alta como invitado activo, y no puede subirse de rol", async () => {
+  await assertFails(set(ref(bd("nuevo"), "roles/nuevo"), { rol: "participante", activo: true }));
+  await assertFails(set(ref(bd("nuevo"), "roles/nuevo"), { rol: "admin", activo: true }));
+  await assertFails(set(ref(bd("nuevo"), "roles/nuevo"), { rol: "invitado", activo: false }));
+  await assertSucceeds(set(ref(bd("nuevo"), "roles/nuevo"), { rol: "invitado", activo: true }));
+  await assertFails(update(ref(bd("nuevo"), "roles/nuevo"), { rol: "participante" }));
+  await assertFails(update(ref(bd("bob"), "roles/bob"), { rol: "participante" }));
+  await assertSucceeds(get(ref(bd("bob"), "roles/bob")));
+  await assertFails(get(ref(bd("bob"), "roles/alice")));
+  await assertFails(get(ref(bd("alice"), "roles")));
+});
+
+test("el administrador raíz (correo verificado) y los administradores por rol gestionan a los demás", async () => {
+  await assertSucceeds(get(ref(bdRaiz(), "roles")));
+  await assertSucceeds(get(ref(bdRaiz(), "usuarios")));
+  await assertSucceeds(update(ref(bdRaiz(), "roles/bob"), { rol: "participante", actualizadoPor: "raiz", actualizado: AHORA }));
+  await assertSucceeds(update(ref(bdRaiz(), "roles/carol"), { rol: "admin" })); // nombrar más administradores
+  await assertSucceeds(update(ref(bd("adminA"), "roles/eve"), { activo: false }));
+  await assertSucceeds(get(ref(bd("adminA"), "usuarios")));
+  await assertFails(update(ref(bd("adminA"), "roles/adminA"), { activo: false }), "un admin no se cambia a sí mismo");
+  await assertFails(update(ref(bd("alice"), "roles/bob"), { rol: "participante" }), "un participante no administra");
+  await assertFails(get(ref(bd("alice"), "usuarios")));
+  await assertFails(update(ref(bdRaiz(), "roles/bob"), { rol: "jefe" }), "rol inválido");
+  await assertFails(set(ref(bdRaiz(), "roles/bob"), null), "no se borra un rol (se desactiva)");
+  // Correo NO verificado: no es administrador.
+  await assertFails(update(ref(bdRaiz(false), "roles/bob"), { rol: "participante" }));
+  await assertFails(get(ref(bdRaiz(false), "roles")));
+});
+
+test("crear lista: participante y admin sí; invitado, desactivado y sin rol no", async () => {
+  const crear = (uid, id) => update(ref(bd(uid)), {
+    ["listas/" + id + "/info"]: { nombre: "X", moneda: "MXN", creadaPor: uid, creada: 5 },
+    ["listas/" + id + "/miembros/" + uid]: { rol: "dueno", nombre: uid },
+    ["listasDeUsuario/" + uid + "/" + id]: true,
+  });
+  await assertSucceeds(crear("carol", "Lc"));
+  await assertSucceeds(crear("adminA", "La"));
+  await assertSucceeds(update(ref(bdRaiz()), {
+    "listas/Lr/info": { nombre: "X", moneda: "MXN", creadaPor: "raiz", creada: 5 },
+    "listas/Lr/miembros/raiz": { rol: "dueno" },
+  }));
+  await assertFails(crear("bob", "Lb"), "invitado sin autorizar");
+  await assertFails(crear("zoe", "Lz"), "desactivada");
+  await assertFails(crear("sinrol", "Ls"), "sin nodo de rol");
+});
+
+test("desactivado: no lee ni escribe sus listas", async () => {
+  await assertFails(get(ref(bd("zoe"), "listas/L1")));
+  await assertFails(update(ref(bd("zoe"), "listas/L1/articulos/a1"), { comprado: false }));
+  // Reactivado, vuelve a tener acceso.
+  await sembrar("roles/zoe/activo", true);
+  await assertSucceeds(get(ref(bd("zoe"), "listas/L1")));
+});
+
+test("invitado (sin autorizar) sí edita las listas a las que lo invitaron", async () => {
+  await assertSucceeds(get(ref(bd("bob"), "listas/L1")));
+  await assertSucceeds(update(ref(bd("bob"), "listas/L1/articulos/a1"), { comprado: false, compradoPor: null }));
+});
+
+// ===== Editores: todo menos eliminar la lista =====
+
+test("editor renombra la lista pero no cambia su autor ni la elimina", async () => {
+  await assertSucceeds(update(ref(bd("bob"), "listas/L1/info"), { nombre: "Súper semanal" }));
+  await assertFails(update(ref(bd("bob"), "listas/L1/info"), { creadaPor: "bob" }));
+  await assertFails(remove(ref(bd("bob"), "listas/L1")));
+});
+
+test("editor quita a otro editor (y su índice) pero no al dueño", async () => {
+  await sembrar("roles/zoe/activo", true);
+  await sembrar("listasDeUsuario/zoe/L1", true);
+  await assertSucceeds(update(ref(bd("bob")), { "listas/L1/miembros/zoe": null, "listasDeUsuario/zoe/L1": null }));
+  await assertFails(remove(ref(bd("bob"), "listas/L1/miembros/alice")));
+  await assertFails(set(ref(bd("bob"), "listas/L1/miembros/carol"), { rol: "editor" }), "un editor no agrega miembros sin invitación");
+});
+
+test("salirse: cualquier miembro menos el dueño", async () => {
+  await assertSucceeds(update(ref(bd("bob")), { "listas/L1/miembros/bob": null, "listasDeUsuario/bob/L1": null }));
+  await assertFails(remove(ref(bd("alice"), "listas/L1/miembros/alice")));
+});
+
+test("dueño elimina la lista completa y el índice de todos los miembros, en una escritura", async () => {
+  await assertSucceeds(update(ref(bd("alice")), { "listas/L1": null, "listasDeUsuario/alice/L1": null, "listasDeUsuario/bob/L1": null }));
+  assert.equal(await leerSinReglas("listas/L1"), null);
+});
+
+test("el dueño no puede nombrar otro dueño", async () => {
+  await assertFails(update(ref(bd("alice"), "listas/L1/miembros/bob"), { rol: "dueno" }));
+  await assertSucceeds(set(ref(bd("alice"), "listas/L1/miembros/carol"), { rol: "editor" }));
+});
+
+// ===== Invitaciones: un solo uso, 7 días =====
+
+test("crear invitación: dueño o editor de la lista, máximo 7 días", async () => {
+  await assertSucceeds(set(ref(bd("bob"), "invitaciones/" + CODIGO), invitacion()));
+  await assertSucceeds(set(ref(bd("alice"), "invitaciones/" + "a".repeat(22)), invitacion({ creadaPor: "alice", creadaPorNombre: "Alice" })));
+  await assertFails(set(ref(bd("carol"), "invitaciones/" + "b".repeat(22)), invitacion({ creadaPor: "carol" })), "no es miembro");
+  await assertFails(set(ref(bd("bob"), "invitaciones/" + "d".repeat(22)), invitacion({ expira: AHORA + 8 * 24 * 3600 * 1000 })), "más de 7 días");
+  await assertFails(set(ref(bd("bob"), "invitaciones/" + "e".repeat(22)), invitacion({ creadaPor: "alice" })), "a nombre de otro");
+  await assertFails(set(ref(bd("bob"), "invitaciones/corto"), invitacion()), "código corto (< 128 bits)");
+});
+
+test("unirse con invitación: una vez, vigente, de esa lista y marcándola como usada", async () => {
+  await sembrar("invitaciones/" + CODIGO, invitacion());
+  await assertFails(unirse("eve", CODIGO, "L1", false), "sin marcar la invitación como usada");
+  await assertSucceeds(unirse("eve")); // eve es invitada (sin autorizar): sí puede unirse
+  assert.equal(await leerSinReglas("invitaciones/" + CODIGO + "/usadaPor"), "eve");
+  await assertSucceeds(get(ref(bd("eve"), "listas/L1")));
+  await assertFails(unirse("dave"), "ya fue usada");
+});
+
+test("unirse falla con invitación vencida, de otra lista, inexistente, de lista borrada, o desactivado", async () => {
+  await sembrar("invitaciones/" + CODIGO, invitacion({ expira: AHORA - 1000 }));
+  await assertFails(unirse("eve"), "vencida");
+  await sembrar("invitaciones/" + CODIGO, invitacion());
+  await sembrar("listas/L2/info", { nombre: "Otra", moneda: "MXN", creadaPor: "carol" });
+  await assertFails(unirse("eve", CODIGO, "L2"), "invitación de otra lista");
+  await assertFails(unirse("eve", "z".repeat(22)), "no existe");
+  await sembrar("roles/eve/activo", false);
+  await assertFails(unirse("eve"), "desactivada");
+  await sembrar("roles/eve/activo", true);
+  await sembrar("listas/L1/info", null);
+  await assertFails(unirse("eve"), "lista eliminada");
+});
+
+test("la invitación usada no se puede reasignar ni alterar; la borra su autor o el dueño", async () => {
+  await sembrar("invitaciones/" + CODIGO, invitacion({ usadaPor: "eve" }));
+  await assertFails(update(ref(bd("dave"), "invitaciones/" + CODIGO), { usadaPor: "dave" }));
+  await sembrar("invitaciones/" + CODIGO + "/usadaPor", null);
+  await assertFails(update(ref(bd("dave"), "invitaciones/" + CODIGO), { usadaPor: "dave", expira: AHORA + 99 }), "no se puede alargar");
+  await assertFails(remove(ref(bd("dave"), "invitaciones/" + CODIGO)));
+  await assertSucceeds(remove(ref(bd("bob"), "invitaciones/" + CODIGO)));
+});
+
+// ===== Coordinación: actividad temporal y presencia =====
+
+test("actividad: cada quien registra solo sus eventos; solo se borran los de más de 23 h", async () => {
+  const ev = (uid, extra) => Object.assign({ uid, nombre: uid, accion: "marco", articuloId: "a1", articulo: "Leche", ts: { ".sv": "timestamp" } }, extra);
+  await assertSucceeds(set(ref(bd("bob"), "listas/L1/actividad/e1"), ev("bob")));
+  await assertFails(set(ref(bd("bob"), "listas/L1/actividad/e2"), ev("alice")), "a nombre de otro");
+  await assertFails(set(ref(bd("bob"), "listas/L1/actividad/e3"), ev("bob", { accion: "borro" })), "acción inválida");
+  await assertFails(set(ref(bd("carol"), "listas/L1/actividad/e4"), ev("carol")), "no miembro");
+  await assertFails(update(ref(bd("bob"), "listas/L1/actividad/reciente"), { articulo: "Otra" }), "no se edita");
+  await assertFails(remove(ref(bd("bob"), "listas/L1/actividad/reciente")), "reciente no se borra");
+  await assertSucceeds(remove(ref(bd("bob"), "listas/L1/actividad/viejo")));
+  // Marcar + registrar en UNA escritura multi-ruta.
+  await assertSucceeds(update(ref(bd("bob")), {
+    "listas/L1/articulos/a1/comprado": true,
+    "listas/L1/articulos/a1/compradoPor": "bob",
+    "listas/L1/actividad/e5": ev("bob"),
+  }));
+});
+
+test("presencia: solo la propia, y solo miembros activos", async () => {
+  await assertSucceeds(set(ref(bd("bob"), "listas/L1/presencia/bob"), { nombre: "Bob", visto: AHORA }));
+  await assertFails(set(ref(bd("bob"), "listas/L1/presencia/alice"), { nombre: "Alice", visto: AHORA }));
+  await assertFails(set(ref(bd("carol"), "listas/L1/presencia/carol"), { nombre: "Carol", visto: AHORA }));
+  await assertSucceeds(remove(ref(bd("bob"), "listas/L1/presencia/bob")));
 });

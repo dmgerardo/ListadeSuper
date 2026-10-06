@@ -5,6 +5,7 @@
   var params = new URLSearchParams(window.location.search);
   var listaId = params.get("lista");
   var limpiarVista = null;
+  var detenerRol = null;
 
   function mostrarSinSesion() {
     app.innerHTML = '<div class="contenedor vacio"><p>Necesitas iniciar sesión.</p>' +
@@ -19,8 +20,20 @@
   function mostrarLista(usuario) {
     // Las pestañas de la barra (Por comprar / Toda la lista) las monta montarVistaArticulos,
     // que es quien sabe qué vista está activa.
-    montarMenuCuenta(usuario);
     limpiarVista = montarVistaArticulos(app, listaId, usuario);
+    detenerRol = montarCuentaConRol(usuario, function (rol) {
+      if (rol.sinNodo || rol.activo) return;
+      // Desactivada: las reglas ya le niegan la lista; se le explica por qué.
+      if (limpiarVista) {
+        limpiarVista();
+        limpiarVista = null;
+      }
+      if (detenerRol) {
+        detenerRol();
+        detenerRol = null;
+      }
+      app.innerHTML = htmlCuentaDesactivada();
+    });
   }
 
   if (!listaId) {

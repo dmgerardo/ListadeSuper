@@ -893,6 +893,124 @@ code { font-size: 0.9em; background: var(--color-segmento); padding: 0 4px; bord
 .contenedor:has(.indice-pasillos:empty) .titulo-pasillo { top: env(safe-area-inset-top); padding-top: 10px; }
 .contenedor:has(.indice-pasillos:empty) .grupo-pasillo { scroll-margin-top: env(safe-area-inset-top); }
 
+/* ===== Roles, usuarios, miembros y actividad (multiusuario) ===== */
+.pildora-rol {
+  display: inline-block;
+  margin: 4px 0 0;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-segmento);
+  color: var(--color-texto);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  align-self: flex-start; /* en columnas flex no se estira a todo lo ancho */
+}
+.pildora-rol-admin { background: var(--color-tinte-primario); color: var(--color-primario-oscuro); }
+.enlace-admin { margin-top: var(--espacio); }
+.aviso-rol {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-texto);
+  text-decoration: none;
+}
+.aviso-rol p { margin: 0; flex: 1; }
+.aviso-pendientes { border: 1.5px solid var(--color-primario); }
+.icono-girado { transform: rotate(180deg); flex: none; color: var(--color-texto-suave); }
+.leyenda-roles p { font-size: 14px; color: var(--color-texto-suave); }
+.leyenda-roles strong { color: var(--color-texto); }
+.lista-usuarios { padding: 4px; }
+.fila-usuario { display: flex; align-items: center; gap: 12px; padding: 10px; flex-wrap: wrap; }
+.fila-usuario + .fila-usuario { box-shadow: inset 0 1px 0 var(--color-fondo); }
+.fila-usuario.pendiente { background: var(--color-tinte-primario); border-radius: 16px; }
+.fila-usuario.inactivo .nombre-lista { color: var(--color-texto-suave); }
+.foto-usuario { width: 44px; height: 44px; flex: none; }
+.datos-usuario { flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 1px; }
+.controles-usuario { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.interruptor {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.interruptor input { width: 22px; height: 22px; accent-color: var(--color-primario); }
+
+.fila-miembros { display: flex; align-items: center; gap: 10px; margin-bottom: var(--espacio); min-height: 44px; }
+.fila-miembros:empty { display: none; }
+.avatares { display: flex; flex: none; }
+.avatar-envoltura { position: relative; display: inline-flex; }
+.avatares .avatar-envoltura + .avatar-envoltura { margin-left: -8px; }
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--color-fondo);
+  background: var(--color-tinte-primario);
+  color: var(--color-primario-oscuro);
+  font-size: 12px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  object-fit: cover;
+}
+.avatar-grande { width: 44px; height: 44px; font-size: 15px; }
+/* Punto verde = está en la lista ahora mismo. */
+.avatar-envoltura.presente::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--color-primario);
+  border: 2px solid var(--color-fondo);
+}
+.resumen-miembros { flex: 1; min-width: 0; font-size: 14px; }
+.texto-presencia { font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.punto-presencia { width: 8px; height: 8px; border-radius: 50%; background: var(--color-primario); flex: none; }
+.fila-miembros .btn-chip { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.tarjeta-invitar { background: var(--color-tinte-primario); box-shadow: none; }
+.tarjeta-invitar .nombre-lista { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; color: var(--color-primario-oscuro); }
+.tarjeta-invitar .texto-suave { color: var(--color-texto); margin: 0 0 10px; font-size: 14px; }
+.tarjeta-invitar .btn-texto { width: 100%; justify-content: center; }
+.campo-liga { display: flex; gap: 6px; margin-bottom: 8px; }
+.campo-liga input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-borde);
+  background: var(--color-superficie);
+  color: var(--color-texto);
+  font-size: 16px;
+}
+.por-quien { color: var(--color-primario-oscuro); font-weight: 600; }
+.lista-actividad { padding: 4px; }
+.fila-actividad { display: flex; align-items: center; gap: 10px; padding: 8px 10px; font-size: 15px; }
+.fila-actividad + .fila-actividad { box-shadow: inset 0 1px 0 var(--color-fondo); }
+.hora-actividad { flex: none; min-width: 64px; color: var(--color-texto-suave); font-size: 13px; font-variant-numeric: tabular-nums; }
+.icono-actividad {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-segmento);
+  color: var(--color-texto);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.icono-actividad.marco { background: var(--color-primario); color: var(--color-texto-sobre-primario); }
+.acciones-lista .boton-actividad { margin-right: auto; }
+.tarjeta-unirse { margin-top: 24px; }
+
 /* ===== Utilidades ===== */
 .texto-suave { color: var(--color-texto-suave); }
 .oculto { display: none !important; }

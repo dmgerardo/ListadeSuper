@@ -31,8 +31,7 @@
     app.innerHTML = '<div data-contenedor-vista></div>';
     var contenedorVista = app.querySelector("[data-contenedor-vista]");
 
-    montarMenuCuenta(usuario);
-
+    // La hoja "Mi cuenta" (con el rol) la monta montarVistaListas.
     limpiarVistaActual = montarVistaListas(contenedorVista, usuario);
   }
 

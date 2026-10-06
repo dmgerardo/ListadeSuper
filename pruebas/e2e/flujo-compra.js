@@ -29,7 +29,9 @@ async function nuevoContexto(browser, opciones) {
     if (m.type() === "error") errores.push("consola: " + m.text());
   });
   await ctx.addInitScript((modo) => {
-    window.__USUARIO_MOCK = { uid: "u1", displayName: "Prueba", email: "prueba@ejemplo.com", photoURL: "" };
+    // El flujo principal corre como el administrador raíz (puede crear listas). Los casos de
+    // invitado / otro usuario cambian el usuario con sessionStorage "__usuarioMock".
+    window.__USUARIO_MOCK = { uid: "u1", displayName: "Prueba", email: "dmgerardo@gmail.com", emailVerified: true, photoURL: "" };
     // modo null = no tocar la preferencia guardada (para probar que persiste al recargar).
     if (modo) {
       try {

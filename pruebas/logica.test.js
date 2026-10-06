@@ -236,3 +236,21 @@ test("editor de precios: soloSinPrecio, cantidadParaUnidad y contarSinPrecio", (
   assert.equal(C(undefined, "lata"), 1);
   assert.equal(C(20000, "pieza"), 9999);
 });
+
+test("roles: rolEfectivo y ADMIN_RAIZ igual al de las reglas", () => {
+  const ctxR = vm.createContext({});
+  vm.runInContext(fs.readFileSync(path.join(raiz, "js/roles.js"), "utf8"), ctxR);
+  const R = (expr) => vm.runInContext(expr, ctxR);
+  const generador = fs.readFileSync(path.join(raiz, "scripts/generar-reglas.py"), "utf8");
+  assert.equal(R("ADMIN_RAIZ"), /ADMIN_RAIZ = "([^"]+)"/.exec(generador)[1], "mismo correo en roles.js y en las reglas");
+  const ef = (nodo, email, ver) => plano(R("rolEfectivo")(nodo, email, ver));
+  assert.deepEqual(ef({}, "dmgerardo@gmail.com", true), { rol: "admin", activo: true, esRaiz: true, esAdmin: true, puedeCrear: true, sinNodo: false });
+  assert.equal(ef({}, "dmgerardo@gmail.com", false).esAdmin, false, "sin correo verificado no es raíz");
+  assert.deepEqual(ef({ rol: "invitado", activo: true }, "x@y.com", true), { rol: "invitado", activo: true, esRaiz: false, esAdmin: false, puedeCrear: false, sinNodo: false });
+  assert.deepEqual(ef({ rol: "participante", activo: true }, "x@y.com", true).puedeCrear, true);
+  assert.deepEqual(ef({ rol: "admin", activo: false }, "x@y.com", true), { rol: "admin", activo: false, esRaiz: false, esAdmin: false, puedeCrear: false, sinNodo: false });
+  assert.equal(ef({}, "x@y.com", true).rol, "invitado", "sin nodo = invitado (aún sin activar)");
+  assert.equal(ef({}, "x@y.com", true).activo, false);
+  assert.equal(ef({}, "x@y.com", true).sinNodo, true, "sin nodo: aún no se sabe (no mostrar 'desactivada')");
+  assert.equal(ef({ rol: "jefe", activo: true }, "x@y.com", true).rol, "invitado");
+});

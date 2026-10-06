@@ -18,6 +18,10 @@ evalúan compuestos sobre la base indicada.
 | claro | `--color-primario-oscuro` | `--color-tinte-primario` | #0F5C2B / #E4F2E7 | 7.02:1 | 4.5:1 | OK | Chip 'Solo sin precio' activo |
 | claro | `--color-primario` | `--color-fondo` | #17803D / #F3F5F0 | 4.56:1 | 3:1 | OK | Borde de campo guardado (componente) |
 | claro | `--color-peligro` | `--color-fondo` | #B42318 / #F3F5F0 | 5.99:1 | 3:1 | OK | Borde de precio inválido (componente) |
+| claro | `--color-primario-oscuro` | `--color-tinte-primario` | #0F5C2B / #E4F2E7 | 7.02:1 | 4.5:1 | OK | Iniciales del avatar, píldora 'Dueño'/'Administrador', usuario pendiente |
+| claro | `--color-texto` | `--color-tinte-primario` | #15211A / #E4F2E7 | 14.36:1 | 4.5:1 | OK | Texto de la tarjeta 'Invita a alguien' y fila de usuario pendiente |
+| claro | `--color-texto-suave` | `--color-tinte-primario` | #56655B / #E4F2E7 | 5.33:1 | 4.5:1 | OK | Correo en la fila de un usuario pendiente (sobre tinte) |
+| claro | `--color-primario-oscuro` | `--color-superficie` | #0F5C2B / #FFFFFF | 8.12:1 | 4.5:1 | OK | 'por Ana' en el renglón del artículo |
 | claro | `--color-primario-oscuro` | `--color-fondo` | #0F5C2B / #F3F5F0 | 7.40:1 | 4.5:1 | OK | Enlaces y acciones de texto sobre el fondo |
 | claro | `--color-primario-oscuro` | `--color-superficie` | #0F5C2B / #FFFFFF | 8.12:1 | 4.5:1 | OK | Acciones de texto en tarjetas |
 | claro | `--color-primario-oscuro` | `--color-tinte-primario` | #0F5C2B / #E4F2E7 | 7.02:1 | 4.5:1 | OK | Pestaña activa de la barra / ícono del estado vacío |
@@ -62,6 +66,10 @@ evalúan compuestos sobre la base indicada.
 | oscuro | `--color-primario-oscuro` | `--color-tinte-primario` | #7FD9A0 / #1D3B29 | 7.21:1 | 4.5:1 | OK | Chip 'Solo sin precio' activo |
 | oscuro | `--color-primario` | `--color-fondo` | #3DBE6E / #121815 | 7.53:1 | 3:1 | OK | Borde de campo guardado (componente) |
 | oscuro | `--color-peligro` | `--color-fondo` | #F1907C / #121815 | 7.73:1 | 3:1 | OK | Borde de precio inválido (componente) |
+| oscuro | `--color-primario-oscuro` | `--color-tinte-primario` | #7FD9A0 / #1D3B29 | 7.21:1 | 4.5:1 | OK | Iniciales del avatar, píldora 'Dueño'/'Administrador', usuario pendiente |
+| oscuro | `--color-texto` | `--color-tinte-primario` | #E8EFE9 / #1D3B29 | 10.50:1 | 4.5:1 | OK | Texto de la tarjeta 'Invita a alguien' y fila de usuario pendiente |
+| oscuro | `--color-texto-suave` | `--color-tinte-primario` | #9DB0A3 / #1D3B29 | 5.36:1 | 4.5:1 | OK | Correo en la fila de un usuario pendiente (sobre tinte) |
+| oscuro | `--color-primario-oscuro` | `--color-superficie` | #7FD9A0 / #1B231E | 9.45:1 | 4.5:1 | OK | 'por Ana' en el renglón del artículo |
 | oscuro | `--color-primario-oscuro` | `--color-fondo` | #7FD9A0 / #121815 | 10.57:1 | 4.5:1 | OK | Enlaces y acciones de texto sobre el fondo |
 | oscuro | `--color-primario-oscuro` | `--color-superficie` | #7FD9A0 / #1B231E | 9.45:1 | 4.5:1 | OK | Acciones de texto en tarjetas |
 | oscuro | `--color-primario-oscuro` | `--color-tinte-primario` | #7FD9A0 / #1D3B29 | 7.21:1 | 4.5:1 | OK | Pestaña activa de la barra / ícono del estado vacío |

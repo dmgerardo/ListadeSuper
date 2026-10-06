@@ -6,7 +6,20 @@
 > de verdad técnica (esa es `AGENTS.md`), pero sigue teniendo el detalle completo de cada
 > fase y el modelo de datos.
 
-## Estado actual: v16 en `main` (2026-10-06)
+## Estado actual: multiusuario (roles, invitaciones, coordinación) — 2026-10-06
+
+- Roles de la app (admin raíz `dmgerardo@gmail.com` + admins por rol, participantes,
+  invitados, activo/desactivado), pantalla `usuarios.html`, invitaciones por liga (1 uso, 7
+  días) con `unirse.html`, editores = todo menos eliminar, eliminar lista (dueño), registro
+  temporal de actividad (24 h) con avisos "Ana marcó Leche", presencia "en la lista ahora",
+  "por Ana", (+/−) por transacción. Ver `AGENTS.md` §2/§3/§6.
+- Probado: reglas 31/31 en el emulador (+2 mutaciones detectadas), lógica 16/16, contraste
+  96/96, e2e compra y e2e multiusuario (390/320/1280). **Falta: prueba real con dos cuentas.**
+- Decisiones del usuario: admin raíz por correo + poder nombrar más admins; un invitado sin
+  autorizar SÍ puede unirse y editar listas a las que lo invitan; editores "todo menos
+  eliminar la lista"; avisos dentro de la app (no push) + registro temporal de quién marcó.
+
+## Estado anterior: v16 en `main` (2026-10-06)
 
 - v16: login en la app anclada del iPhone — `authDomain` = dominio de la app y CSP solo en
   documentos (ver `AGENTS.md` §6). El usuario agregó (captura, 2026-10-06)

@@ -2,7 +2,31 @@
   "rules": {
     ".read": false,
     ".write": false,
+    "roles": {
+      ".read": "auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || (root.child('roles/' + auth.uid + '/rol').val() === 'admin' && root.child('roles/' + auth.uid + '/activo').val() === true))",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && ((auth.uid === $uid && !data.exists() && newData.child('rol').val() === 'invitado' && newData.child('activo').val() === true) || (((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || (root.child('roles/' + auth.uid + '/rol').val() === 'admin' && root.child('roles/' + auth.uid + '/activo').val() === true)) && auth.uid !== $uid && newData.exists()))",
+        ".validate": "newData.hasChildren(['rol', 'activo']) && (newData.child('rol').val() === 'admin' || newData.child('rol').val() === 'participante' || newData.child('rol').val() === 'invitado') && newData.child('activo').isBoolean()",
+        "rol": {
+          ".validate": "newData.isString()"
+        },
+        "activo": {
+          ".validate": "newData.isBoolean()"
+        },
+        "actualizado": {
+          ".validate": "newData.isNumber()"
+        },
+        "actualizadoPor": {
+          ".validate": "newData.isString() && newData.val().length <= 128"
+        },
+        "$otro": {
+          ".validate": false
+        }
+      }
+    },
     "usuarios": {
+      ".read": "auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || (root.child('roles/' + auth.uid + '/rol').val() === 'admin' && root.child('roles/' + auth.uid + '/activo').val() === true))",
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid"
@@ -12,24 +36,47 @@
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         "$listaId": {
-          ".write": "auth != null && (auth.uid === $uid || root.child('listas/' + $listaId + '/miembros/' + auth.uid + '/rol').val() === 'dueno')"
+          ".write": "auth != null && ((auth.uid === $uid) || (root.child('listas/' + $listaId + '/miembros/' + auth.uid + '/rol').val() === 'dueno') || (!newData.exists() && root.child('listas/' + $listaId + '/miembros/' + auth.uid + '/rol').val() === 'editor'))"
         }
       }
     },
     "listas": {
       "$listaId": {
-        ".read": "auth != null && data.child('miembros/' + auth.uid).exists()",
+        ".read": "auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && data.child('miembros/' + auth.uid).exists()",
+        ".write": "auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && !newData.exists() && data.child('miembros/' + auth.uid + '/rol').val() === 'dueno'",
         "info": {
-          ".write": "auth != null && ((!data.exists() && newData.child('creadaPor').val() === auth.uid) || root.child('listas/' + $listaId + '/miembros/' + auth.uid + '/rol').val() === 'dueno')",
-          ".validate": "newData.hasChildren(['nombre', 'moneda', 'creadaPor']) && newData.child('nombre').isString() && newData.child('nombre').val().length <= 80"
+          ".write": "auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && ((!data.exists() && newData.child('creadaPor').val() === auth.uid && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || ((root.child('roles/' + auth.uid + '/rol').val() === 'admin' || root.child('roles/' + auth.uid + '/rol').val() === 'participante') && root.child('roles/' + auth.uid + '/activo').val() === true))) || (data.exists() && newData.exists() && (root.child('listas/' + $listaId + '/miembros/' + auth.uid + '/rol').val() === 'dueno' || root.child('listas/' + $listaId + '/miembros/' + auth.uid + '/rol').val() === 'editor') && newData.child('creadaPor').val() === data.child('creadaPor').val()))",
+          ".validate": "newData.hasChildren(['nombre', 'moneda', 'creadaPor']) && newData.child('nombre').isString() && newData.child('nombre').val().length > 0 && newData.child('nombre').val().length <= 80"
         },
         "miembros": {
           "$uid": {
-            ".write": "auth != null && ((auth.uid === $uid && !data.exists() && newData.child('rol').val() === 'dueno' && !root.child('listas/' + $listaId + '/info').exists()) || (auth.uid === $uid && !data.exists() && newData.child('rol').val() === 'editor' && root.child('invitaciones/' + newData.child('codigo').val() + '/listaId').val() === $listaId && root.child('invitaciones/' + newData.child('codigo').val() + '/expira').val() > now) || (auth.uid === $uid && !newData.exists() && data.child('rol').val() !== 'dueno') || (root.child('listas/' + $listaId + '/miembros/' + auth.uid + '/rol').val() === 'dueno' && auth.uid !== $uid))"
+            ".write": "auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && ((auth.uid === $uid && !data.exists() && newData.child('rol').val() === 'dueno' && !root.child('listas/' + $listaId + '/info').exists() && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || ((root.child('roles/' + auth.uid + '/rol').val() === 'admin' || root.child('roles/' + auth.uid + '/rol').val() === 'participante') && root.child('roles/' + auth.uid + '/activo').val() === true))) || (auth.uid === $uid && !data.exists() && newData.child('rol').val() === 'editor' && root.child('listas/' + $listaId + '/info').exists() && root.child('invitaciones/' + newData.child('codigo').val()).child('listaId').val() === $listaId && root.child('invitaciones/' + newData.child('codigo').val()).child('expira').val() > now && !root.child('invitaciones/' + newData.child('codigo').val()).child('usadaPor').exists() && newData.parent().parent().parent().parent().child('invitaciones/' + newData.child('codigo').val()).child('usadaPor').val() === auth.uid) || (auth.uid === $uid && !newData.exists() && data.child('rol').val() !== 'dueno') || (root.child('listas/' + $listaId + '/miembros/' + auth.uid + '/rol').val() === 'dueno' && auth.uid !== $uid && (!newData.exists() || newData.child('rol').val() === 'editor')) || (root.child('listas/' + $listaId + '/miembros/' + auth.uid + '/rol').val() === 'editor' && auth.uid !== $uid && !newData.exists() && data.child('rol').val() !== 'dueno'))",
+            ".validate": "newData.hasChildren(['rol']) && (newData.child('rol').val() === 'dueno' || newData.child('rol').val() === 'editor')",
+            "rol": {
+              ".validate": "newData.isString()"
+            },
+            "nombre": {
+              ".validate": "newData.isString() && newData.val().length <= 120"
+            },
+            "email": {
+              ".validate": "newData.isString() && newData.val().length <= 200"
+            },
+            "foto": {
+              ".validate": "newData.isString() && newData.val().length <= 2000"
+            },
+            "desde": {
+              ".validate": "newData.isNumber()"
+            },
+            "codigo": {
+              ".validate": "newData.isString() && newData.val().length <= 64"
+            },
+            "$otro": {
+              ".validate": false
+            }
           }
         },
         "articulos": {
-          ".write": "auth != null && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists()",
+          ".write": "(auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists())",
           "$articuloId": {
             ".validate": "!newData.exists() || newData.hasChildren(['nombre', 'categoria', 'comprado'])",
             "nombre": {
@@ -70,18 +117,91 @@
             }
           }
         },
+        "actividad": {
+          ".indexOn": [
+            "ts"
+          ],
+          "$evento": {
+            ".write": "(auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists()) && ((!data.exists() && newData.child('uid').val() === auth.uid) || (!newData.exists() && data.child('ts').val() < now - 82800000))",
+            ".validate": "newData.hasChildren(['uid', 'nombre', 'accion', 'articuloId', 'articulo', 'ts']) && (newData.child('accion').val() === 'marco' || newData.child('accion').val() === 'desmarco') && newData.child('ts').isNumber() && newData.child('ts').val() <= now && newData.child('nombre').isString() && newData.child('nombre').val().length <= 120 && newData.child('articulo').isString() && newData.child('articulo').val().length <= 120 && newData.child('articulo').val().length >= 1 && newData.child('articuloId').isString() && newData.child('articuloId').val().length <= 64 && newData.child('articuloId').val().length >= 1",
+            "uid": {
+              ".validate": "newData.isString()"
+            },
+            "nombre": {
+              ".validate": "newData.isString()"
+            },
+            "accion": {
+              ".validate": "newData.isString()"
+            },
+            "articuloId": {
+              ".validate": "newData.isString()"
+            },
+            "articulo": {
+              ".validate": "newData.isString()"
+            },
+            "ts": {
+              ".validate": "newData.isNumber()"
+            },
+            "$otro": {
+              ".validate": false
+            }
+          }
+        },
+        "presencia": {
+          "$uid": {
+            ".write": "(auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists()) && auth.uid === $uid",
+            ".validate": "!newData.exists() || (newData.hasChildren(['nombre', 'visto']) && newData.child('nombre').isString() && newData.child('nombre').val().length <= 120)",
+            "nombre": {
+              ".validate": "newData.isString()"
+            },
+            "foto": {
+              ".validate": "newData.isString() && newData.val().length <= 2000"
+            },
+            "visto": {
+              ".validate": "newData.isNumber()"
+            },
+            "$otro": {
+              ".validate": false
+            }
+          }
+        },
         "catalogo": {
-          ".write": "auth != null && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists()"
+          ".write": "(auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists())"
         },
         "plantillas": {
-          ".write": "auth != null && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists()"
+          ".write": "(auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists())"
         }
       }
     },
     "invitaciones": {
       "$codigo": {
         ".read": "auth != null",
-        ".write": "auth != null && ((!data.exists() && newData.child('creadaPor').val() === auth.uid && root.child('listas/' + newData.child('listaId').val() + '/miembros/' + auth.uid + '/rol').val() === 'dueno') || (data.exists() && !newData.exists() && root.child('listas/' + data.child('listaId').val() + '/miembros/' + auth.uid + '/rol').val() === 'dueno'))"
+        ".write": "auth != null && ((auth.token.email === 'dmgerardo@gmail.com' && auth.token.email_verified === true) || root.child('roles/' + auth.uid + '/activo').val() === true) && ((!data.exists() && newData.child('creadaPor').val() === auth.uid && (root.child('listas/' + newData.child('listaId').val() + '/miembros/' + auth.uid + '/rol').val() === 'dueno' || root.child('listas/' + newData.child('listaId').val() + '/miembros/' + auth.uid + '/rol').val() === 'editor') && newData.child('expira').val() > now && newData.child('expira').val() <= now + 604860000 && !newData.child('usadaPor').exists()) || (data.exists() && newData.exists() && !data.child('usadaPor').exists() && newData.child('usadaPor').val() === auth.uid && data.child('expira').val() > now && newData.child('listaId').val() === data.child('listaId').val() && newData.child('listaNombre').val() === data.child('listaNombre').val() && newData.child('creadaPor').val() === data.child('creadaPor').val() && newData.child('creadaPorNombre').val() === data.child('creadaPorNombre').val() && newData.child('creada').val() === data.child('creada').val() && newData.child('expira').val() === data.child('expira').val()) || (data.exists() && !newData.exists() && (data.child('creadaPor').val() === auth.uid || root.child('listas/' + data.child('listaId').val() + '/miembros/' + auth.uid + '/rol').val() === 'dueno')))",
+        ".validate": "$codigo.length >= 22 && $codigo.length <= 64 && newData.hasChildren(['listaId', 'listaNombre', 'creadaPor', 'creadaPorNombre', 'creada', 'expira']) && newData.child('listaId').isString() && newData.child('listaId').val().length <= 64 && newData.child('listaId').val().length >= 1 && newData.child('listaNombre').isString() && newData.child('listaNombre').val().length <= 80 && newData.child('listaNombre').val().length >= 1 && newData.child('creadaPorNombre').isString() && newData.child('creadaPorNombre').val().length <= 120 && newData.child('creada').isNumber() && newData.child('expira').isNumber()",
+        "listaId": {
+          ".validate": "newData.isString()"
+        },
+        "listaNombre": {
+          ".validate": "newData.isString()"
+        },
+        "creadaPor": {
+          ".validate": "newData.isString()"
+        },
+        "creadaPorNombre": {
+          ".validate": "newData.isString()"
+        },
+        "creada": {
+          ".validate": "newData.isNumber()"
+        },
+        "expira": {
+          ".validate": "newData.isNumber()"
+        },
+        "usadaPor": {
+          ".validate": "newData.isString() && newData.val().length <= 128"
+        },
+        "$otro": {
+          ".validate": false
+        }
       }
     }
   }

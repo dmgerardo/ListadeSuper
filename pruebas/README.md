@@ -8,6 +8,7 @@ Tres niveles. Correr los tres antes de dar algo por terminado (ver `AGENTS.md` �
 | Lógica pura (`js/logica-articulos.js`, catálogo) | `node --test pruebas/*.test.js` | Node 18+ |
 | Reglas de `database.rules.json` | `cd pruebas/reglas && npm install && npm test` | Node + Java 11+ |
 | Flujo completo en el navegador | `python3 pruebas/e2e/servidor.py &` y `node pruebas/e2e/flujo-compra.js` | Python 3 + Playwright |
+| Roles, usuarios, invitaciones y coordinación | `node pruebas/e2e/multiusuario.js` (con el mismo servidor) | Python 3 + Playwright |
 | Contraste WCAG de los tokens | `node pruebas/contraste.js` (escribe `contraste-resultados.md`) | Node |
 
 ## Reglas (`pruebas/reglas/`)

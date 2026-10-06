@@ -2,13 +2,15 @@
 // ignoreSearch, para no duplicar entradas por ?v=N); CSS/JS = caché primero, pero SOLO
 // dentro del caché de ESTA versión (así cada vN sirve exactamente sus propios archivos).
 // IMPORTANTE: cada archivo .js/.css nuevo debe agregarse también aquí.
-const APP_VERSION = "16";
+const APP_VERSION = "17";
 const NOMBRE_CACHE = "app-shell-v" + APP_VERSION;
 
 const ARCHIVOS_APP_SHELL = [
   "/",
   "/index.html",
   "/lista.html",
+  "/usuarios.html",
+  "/unirse.html",
   "/historial.html",
   "/manifest.json",
   "/css/estilos.css",
@@ -16,12 +18,18 @@ const ARCHIVOS_APP_SHELL = [
   "/js/firebase-config.js",
   "/js/db.js",
   "/js/auth.js",
+  "/js/roles.js",
   "/js/iconos.js",
   "/js/render-utils.js",
   "/js/catalogo-categorias.js",
   "/js/logica-articulos.js",
   "/js/vista-articulos.js",
+  "/js/vista-miembros.js",
+  "/js/coordinacion.js",
   "/js/vista-listas.js",
+  "/js/vista-usuarios.js",
+  "/js/pagina-usuarios.js",
+  "/js/pagina-unirse.js",
   "/js/pagina-inicio.js",
   "/js/pagina-lista.js",
   "/js/app-version.js",

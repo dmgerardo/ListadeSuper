@@ -41,6 +41,19 @@ en npm es `12.19.0`, ver §7).
 - **Semántica de `comprado`** (confirmada con el usuario): marcado = "ya lo tengo / no hace
   falta"; desmarcado = "por comprar". La lista es fija y se reutiliza: no se borran artículos
   al comprar. Lo importado entra marcado. La vista por defecto es "Por comprar".
+- **`database.rules.json` se GENERA** con `python3 scripts/generar-reglas.py` (las expresiones
+  "admin", "miembro activo", etc. se definen una vez ahí). No editar el JSON a mano.
+- **Roles de la app** (`roles/{uid}`: admin / participante / invitado + activo). El
+  administrador raíz es `ADMIN_RAIZ` (correo verificado) en el generador Y en `js/roles.js`
+  (una prueba verifica que coincidan); no tiene nodo en `roles/`. Alta propia solo como
+  invitado activo. Invitado: usa listas a las que lo invitan, no crea. Desactivado: nada.
+- **Miembros de lista**: dueño + editores; los editores hacen todo menos eliminar la lista
+  (renombran, invitan, quitan a quien no sea el dueño). Invitaciones: código de 128 bits,
+  un solo uso (`usadaPor` en la misma escritura que el alta), vencen en 7 días.
+- **Marcar/desmarcar se registra en `listas/{id}/actividad`** (quién, qué, cuándo) en la MISMA
+  escritura multi-ruta (`escribirArticulo` en `vista-articulos.js`). Es temporal: el cliente
+  borra lo de > 24 h al abrir la lista (las reglas permiten borrar solo lo de > 23 h).
+- **Cambios de cantidad (+/−) con `transaction`**, para no perder toques simultáneos.
 - **Toda regla nueva o cambiada lleva su caso en `pruebas/reglas/reglas.test.js`** y se
   corre `npm test` ahí antes de publicar. `agregadoPor`/`compradoPor` NO se atan a
   `auth.uid` a propósito (el Deshacer de un borrado restaura la autoría de otro miembro).
@@ -82,7 +95,13 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `js/catalogo-categorias.js` | Las 14 categorías/pasillos del usuario (confirmadas en Fase 2, orden de su nota de iPhone; "Especiales" es el cajón, no hay "Otros"), su ícono (`CATEGORIAS_ICONOS`), alias para importar y las 11 unidades |
 | `js/logica-articulos.js` | Lógica pura, probada en Node: `normalizarNombre`, `interpretarTextoRapido` ("2 kg tomate"), `ordenCategoriasEfectivo`, `agruparArticulos`, `totalesLista`, `parsearNotaImportada`, `separarRepetidos`, `buscarPorNombre`, `textoCantidad`, `pasoDeUnidad`, `siguienteCantidad`, `etiquetaUnidad` (contador −/+), `compararPorNombre` (orden alfabético), `cantidadParaUnidad`, `contarSinPrecio` (editor de precios) |
 | `js/vista-articulos.js` | Pantalla de una lista: vistas "Por comprar"/"Toda la lista", campo rápido (busca + agrega), formulario agregar/editar/eliminar, marcar todo, importar nota, totales, Deshacer |
-| `js/vista-listas.js` | Pantalla "Mis listas": crear, abrir, renombrar |
+| `js/vista-listas.js` | Pantalla "Mis listas": crear, abrir, renombrar, eliminar (dueño); avisos según rol |
+| `js/roles.js` | `ADMIN_RAIZ`, `rolEfectivo`, `asegurarRol`, `escucharRol`, `montarCuentaConRol` |
+| `js/vista-usuarios.js` + `js/pagina-usuarios.js` + `usuarios.html` | Administración de usuarios (rol y activo) |
+| `js/vista-miembros.js` | Fila de miembros + presencia, hoja "Miembros": invitar (liga), quitar, salir |
+| `js/coordinacion.js` | Registro de actividad (24 h), avisos de lo que marcan otros, hoja "Actividad" |
+| `js/pagina-unirse.js` + `unirse.html` | Aceptar una invitación (`unirse.html?codigo=…`) |
+| `scripts/generar-reglas.py` | Genera `database.rules.json` |
 | `js/pagina-inicio.js` | Script de arranque de `index.html` (bienvenida o "Mis listas") |
 | `js/pagina-lista.js` | Script de arranque de `lista.html` (pestañas de la barra + `montarVistaArticulos`) |
 | `js/version.js` | Estado de conexión + versión en la barra inferior (tocar = forzar actualización) y registro del Service Worker |
@@ -91,7 +110,7 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `pruebas/` | Pruebas: lógica en Node, reglas con el emulador, flujo con Playwright, contraste de tokens (`contraste.js`) — ver `pruebas/README.md` |
 | `scripts/generar-iconos.py` | Genera `icons/*.png` (placeholder) con los colores de los tokens. Requiere Pillow |
 | `historial.html` | Historial de versiones para usuarios |
-| `database.rules.json` | Reglas. Probadas con el Emulador (`pruebas/reglas`, 15 casos): Fase 1 (crear lista, no-miembro, renombrar, perfil) y artículos (validación por campo, multi-ruta). Invitaciones/miembros (Fase 4) aún sin casos |
+| `database.rules.json` | Reglas (GENERADAS, ver arriba). Probadas con el Emulador (`pruebas/reglas`, 31 casos): roles y admin raíz, crear lista por rol, desactivados, artículos, editores, invitaciones de un solo uso, eliminar lista, actividad y presencia |
 | `sw.js` | App shell cacheado por versión |
 
 ## 3b. Sistema visual "Mercado fresco" (Fase 2.1)
@@ -242,6 +261,15 @@ confirmado — se usará en Fase 4).
   redirección autorizados" del cliente OAuth web en Google Cloud Console; sin eso Google
   responde `redirect_uri_mismatch` en todos los dispositivos. `pruebas/e2e/servidor.py` ahora
   aplica las cabeceras por ruta, como Hosting.
+- **`.validate` NO se evalúa al borrar** en Realtime Database: un administrador podía borrar el
+  rol de alguien pese a `hasChildren`. Para impedir borrados hay que ponerlo en `.write`
+  (`&& newData.exists()`). Lo detectó una prueba del emulador.
+- **`newData.parent()` se cuenta desde el nodo de la regla**: desde `listas/$l/miembros/$uid`
+  hasta la raíz son 4 `parent()`, no 3 (con 3 las invitaciones válidas fallaban).
+- **El mock de Firebase debe avisar a un oyente solo si SU valor cambió** (como Firebase): si
+  no, `.info/connected` se disparaba con cada escritura y la presencia se re-anunciaba en ciclo.
+- **El administrador raíz no debe tener nodo en `roles/`**: `asegurarRol` le creaba uno de
+  "invitado" y aparecía como pendiente de autorización.
 - **Un toast de una acción anterior tapaba el formulario recién abierto** (z-index 200 del
   toast contra 100 del modal; visto en capturas de la Fase 2.1 cubriendo el campo "Notas").
   Ahora los toasts van en z-index 90. La prueba `flujo-compra.js` lo verifica.
@@ -264,7 +292,10 @@ confirmado — se usará en Fase 4).
 - SDK de Firebase: la app usa `10.14.1` (la última de la rama 10); la más reciente en npm al
   2026-10-06 es `12.19.0` (verificado con `npm view firebase version`). Actualizar es un
   cambio aparte: probarlo con `pruebas/e2e` y en el sitio real.
-- Reglas de invitaciones/miembros (unirse, quitar miembro, salir): sin casos en el emulador todavía (Fase 4).
+- Multiusuario probado con el emulador (reglas) y con Firebase simulado (UI); **falta la prueba
+  real con dos cuentas de Google en dos teléfonos** (latencia, presencia al bloquear la
+  pantalla del iPhone, avisos). La presencia se cachea en `localStorage` como todo `escuchar`:
+  sin conexión puede mostrar a alguien "en la lista" de la última vez.
 - Login con Google no se probó en iPhone real (Safari ni PWA instalada). Tampoco se pudo
   completar un login real en esta sesión: Authentication → Google todavía no está
   habilitado en la consola, y la `apiKey` actual devuelve `auth/api-key-not-valid` (ver
