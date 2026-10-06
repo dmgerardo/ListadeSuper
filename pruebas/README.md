@@ -31,7 +31,8 @@ la nube el CLI manda su llamada local para cargar las reglas por el proxy de sal
   totales, marcar todo, eliminar con Deshacer, reimportar sin duplicar, sin errores de página
   ni violaciones de CSP, sin controles de la barra traslapados; además (Fase 2.1) índice de
   pasillos que salta a la sección, baldosas con ícono, marcado sin tachar, fuentes cargadas,
-  etiqueta de pestaña activa solo desde 375 px y ningún toast encima de un formulario. Capturas en
+  etiqueta de pestaña activa solo desde 375 px y ningún toast encima de un formulario; y
+  (v12) el contador (−)/(+) de "Toda la lista": paso por unidad, mínimo, no toca "marcado". Capturas en
   `pruebas/e2e/capturas/` (o `CAPTURAS=...`), ignoradas por git.
 
 Nada de `pruebas/` se despliega (está en `hosting.ignore` de `firebase.json`).

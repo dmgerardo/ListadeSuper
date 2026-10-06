@@ -11,7 +11,8 @@ evalúan compuestos sobre la base indicada.
 | claro | `--color-texto-suave` | `--color-fondo` | #56655B / #F3F5F0 | 5.61:1 | 4.5:1 | OK | Subtítulos sobre el fondo |
 | claro | `--color-texto-suave` | `--color-superficie` | #56655B / #FFFFFF | 6.16:1 | 4.5:1 | OK | Detalle de artículo y lo marcado (Toda la lista) |
 | claro | `--color-texto-suave` | `--color-segmento` | #56655B / #E8ECE6 | 5.16:1 | 4.5:1 | OK | Pestaña inactiva del selector de vista |
-| claro | `--color-texto` | `--color-segmento` | #15211A / #E8ECE6 | 13.90:1 | 4.5:1 | OK | Contador y <code> sobre el riel gris |
+| claro | `--color-texto` | `--color-segmento` | #15211A / #E8ECE6 | 13.90:1 | 4.5:1 | OK | Contador, <code> y botón (−) de cantidad sobre el riel gris |
+| claro | `--color-texto-suave` | `--color-superficie` | #56655B / #FFFFFF | 6.16:1 | 4.5:1 | OK | Unidad del contador de cantidad (pza, kg…) en la fila |
 | claro | `--color-primario-oscuro` | `--color-fondo` | #0F5C2B / #F3F5F0 | 7.40:1 | 4.5:1 | OK | Enlaces y acciones de texto sobre el fondo |
 | claro | `--color-primario-oscuro` | `--color-superficie` | #0F5C2B / #FFFFFF | 8.12:1 | 4.5:1 | OK | Acciones de texto en tarjetas |
 | claro | `--color-primario-oscuro` | `--color-tinte-primario` | #0F5C2B / #E4F2E7 | 7.02:1 | 4.5:1 | OK | Pestaña activa de la barra / ícono del estado vacío |
@@ -49,7 +50,8 @@ evalúan compuestos sobre la base indicada.
 | oscuro | `--color-texto-suave` | `--color-fondo` | #9DB0A3 / #121815 | 7.86:1 | 4.5:1 | OK | Subtítulos sobre el fondo |
 | oscuro | `--color-texto-suave` | `--color-superficie` | #9DB0A3 / #1B231E | 7.02:1 | 4.5:1 | OK | Detalle de artículo y lo marcado (Toda la lista) |
 | oscuro | `--color-texto-suave` | `--color-segmento` | #9DB0A3 / #222C26 | 6.30:1 | 4.5:1 | OK | Pestaña inactiva del selector de vista |
-| oscuro | `--color-texto` | `--color-segmento` | #E8EFE9 / #222C26 | 12.33:1 | 4.5:1 | OK | Contador y <code> sobre el riel gris |
+| oscuro | `--color-texto` | `--color-segmento` | #E8EFE9 / #222C26 | 12.33:1 | 4.5:1 | OK | Contador, <code> y botón (−) de cantidad sobre el riel gris |
+| oscuro | `--color-texto-suave` | `--color-superficie` | #9DB0A3 / #1B231E | 7.02:1 | 4.5:1 | OK | Unidad del contador de cantidad (pza, kg…) en la fila |
 | oscuro | `--color-primario-oscuro` | `--color-fondo` | #7FD9A0 / #121815 | 10.57:1 | 4.5:1 | OK | Enlaces y acciones de texto sobre el fondo |
 | oscuro | `--color-primario-oscuro` | `--color-superficie` | #7FD9A0 / #1B231E | 9.45:1 | 4.5:1 | OK | Acciones de texto en tarjetas |
 | oscuro | `--color-primario-oscuro` | `--color-tinte-primario` | #7FD9A0 / #1D3B29 | 7.21:1 | 4.5:1 | OK | Pestaña activa de la barra / ícono del estado vacío |

@@ -170,6 +170,46 @@ async function flujo(browser, ancho, modo) {
   assert.deepEqual(await nombresVisibles(page), ["Plátanos", "Mangos", "tomate", "Leche Entera 2 Santa Clara"]);
   paso("edición: pasillo + precio con coma; total $51.00 (2 kg × $25.50)");
 
+  // 7b. Contador (−)/(+) en "Toda la lista": cambia SOLO la cantidad, con paso por unidad.
+  await page.click('[data-vista="todo"]');
+  await pausa(page);
+  assert.equal(await page.$$eval(".control-cantidad", (c) => c.length), 172, "contador en cada renglón de Toda la lista");
+  const valor = (nombre) => page.$eval(`.control-cantidad[aria-label="Cantidad de ${nombre}"] .valor-cantidad`, (v) => v.innerText.replace(/\s+/g, " ").trim());
+  const art = async (nombre) => Object.values(await leerBD(page, "listas/" + listaId + "/articulos")).find((a) => a.nombre === nombre);
+  assert.equal(await valor("Plátanos"), "1 pza");
+  assert.equal(await page.isDisabled('[aria-label="Quitar 1 pza a Plátanos"]'), true, "(−) deshabilitado en 1 pza");
+  await page.click('[aria-label="Agregar 1 pza a Plátanos"]');
+  await page.click('[aria-label="Agregar 1 pza a Plátanos"]');
+  await pausa(page);
+  assert.equal(await valor("Plátanos"), "3 pzas");
+  assert.equal((await art("Plátanos")).cantidad, 3);
+  assert.equal((await art("Plátanos")).comprado, false, "(+) no cambia marcado/desmarcado");
+  await page.click('[aria-label="Quitar 1 pza a Plátanos"]');
+  await pausa(page);
+  assert.equal((await art("Plátanos")).cantidad, 2);
+  // kg de medio en medio; el subtotal del renglón se recalcula.
+  assert.equal(await valor("tomate"), "2 kg");
+  await page.click('[aria-label="Quitar 0.5 kg a tomate"]');
+  await pausa(page);
+  assert.equal((await art("tomate")).cantidad, 1.5);
+  assert.match(await page.textContent('.fila-articulo:has([aria-label="Cantidad de tomate"]) .precio-detalle'), /\$38\.25/);
+  await page.click('[aria-label="Agregar 0.5 kg a tomate"]');
+  await pausa(page);
+  assert.equal((await art("tomate")).cantidad, 2);
+  // Un artículo MARCADO también acepta (+) y sigue marcado.
+  await page.click('[aria-label="Agregar 1 pza a Mandarina"]');
+  await pausa(page);
+  const mandarina = await art("Mandarina");
+  assert.deepEqual([mandarina.cantidad, mandarina.comprado], [2, true]);
+  // El contador cabe en el renglón (sin salirse de la pantalla).
+  const fuera = await page.$$eval(".control-cantidad", (cs) => cs.filter((c) => c.getBoundingClientRect().right > window.innerWidth + 0.5).length);
+  assert.equal(fuera, 0, "ningún contador se sale de la pantalla");
+  if (ancho === 320 || ancho === 390) await page.screenshot({ path: path.join(CAPTURAS, "contador-" + ancho + "-" + modo + ".png") });
+  await page.click('[data-vista="pendientes"]');
+  await pausa(page);
+  assert.equal(await page.$$eval(".control-cantidad", (c) => c.length), 0, "en Por comprar no hay contador");
+  paso("contador (−)/(+): pzas de 1 en 1, kg de 0.5, mínimo, sin tocar 'marcado'");
+
   // 8. Marcar en la tienda: desaparece; Deshacer lo regresa.
   await page.click('[aria-label="Marcar Plátanos como comprado"]');
   await pausa(page);

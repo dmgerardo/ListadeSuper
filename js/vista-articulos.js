@@ -91,21 +91,48 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
 
   // ===== Pintado =====
 
+  // Contador (−) cantidad unidad (+) de "Toda la lista", tipo carrito de compras: la cantidad
+  // y su unidad siempre visibles. Solo cambia la cantidad (no marca ni desmarca).
+  function controlCantidad(a) {
+    var n = typeof a.cantidad === "number" ? a.cantidad : 1;
+    var unidad = a.unidad || "pieza";
+    var paso = pasoDeUnidad(unidad);
+    var textoPaso = String(paso) + " " + etiquetaUnidad(paso, unidad);
+    var puedeBajar = siguienteCantidad(n, unidad, -1) !== null;
+    var puedeSubir = siguienteCantidad(n, unidad, 1) !== null;
+    var actual = String(Math.round(n * 100) / 100);
+    return (
+      '<div class="control-cantidad" role="group" aria-label="' + esc("Cantidad de " + a.nombre) + '">' +
+      '<button type="button" class="btn-cantidad" data-cantidad="-1" data-id="' + esc(a.id) + '"' + (puedeBajar ? "" : " disabled") +
+      ' aria-label="' + esc("Quitar " + textoPaso + " a " + a.nombre) + '" title="' + esc("Quitar " + textoPaso) + '">' + icono("minus", 18) + "</button>" +
+      '<span class="valor-cantidad"><span class="numero-cantidad">' + esc(actual) + "</span>" +
+      '<span class="unidad-cantidad">' + esc(etiquetaUnidad(n, unidad)) + "</span></span>" +
+      '<button type="button" class="btn-cantidad btn-cantidad-mas" data-cantidad="1" data-id="' + esc(a.id) + '"' + (puedeSubir ? "" : " disabled") +
+      ' aria-label="' + esc("Agregar " + textoPaso + " a " + a.nombre) + '" title="' + esc("Agregar " + textoPaso) + '">' + icono("plus", 18) + "</button>" +
+      "</div>"
+    );
+  }
+
   function filaArticulo(a) {
+    // En "Toda la lista" la cantidad vive en el contador y el subtotal baja al renglón de
+    // detalle (no caben contador y precio a la derecha en un iPhone de 320 px).
+    var conContador = vista === "todo";
     var detalle = [];
     var cantidad = textoCantidad(a.cantidad, a.unidad);
-    if (cantidad) detalle.push(esc(cantidad));
+    if (cantidad && !conContador) detalle.push(esc(cantidad));
     if (a.notas) detalle.push('<span class="notas-articulo">' + esc(a.notas) + "</span>");
     var precio = "";
     if (typeof a.precio === "number") {
       var n = typeof a.cantidad === "number" ? a.cantidad : 1;
-      precio = '<span class="precio-articulo">' + esc(formatoMoneda(n * a.precio, info.moneda)) + "</span>";
+      var subtotal = esc(formatoMoneda(n * a.precio, info.moneda));
+      if (conContador) detalle.push('<span class="precio-detalle">' + subtotal + "</span>");
+      else precio = '<span class="precio-articulo">' + subtotal + "</span>";
     }
     var etiquetaCasilla = a.comprado
       ? "Desmarcar " + a.nombre + " (poner por comprar)"
       : "Marcar " + a.nombre + " como comprado";
     return (
-      '<li class="fila-articulo' + (a.comprado ? " marcado" : "") + '">' +
+      '<li class="fila-articulo' + (a.comprado ? " marcado" : "") + (conContador ? " con-contador" : "") + '">' +
       '<button type="button" class="casilla" role="checkbox" aria-checked="' + (a.comprado ? "true" : "false") + '" ' +
       'data-alternar="' + esc(a.id) + '" aria-label="' + esc(etiquetaCasilla) + '" title="' + esc(etiquetaCasilla) + '">' +
       '<span class="casilla-circulo">' + icono("check", 18) + "</span>" +
@@ -117,6 +144,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       "</span>" +
       precio +
       "</button>" +
+      (conContador ? controlCantidad(a) : "") +
       "</li>"
     );
   }
@@ -278,6 +306,18 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         }
       });
     }
+  }
+
+  // (+)/(−): una escritura de campo (cantidad) por toque. Sin toast: el cambio se ve en el
+  // contador y se deshace con el botón contrario.
+  function cambiarCantidad(id, direccion) {
+    var a = articulos[id];
+    if (!a) return;
+    var nueva = siguienteCantidad(a.cantidad, a.unidad, direccion);
+    if (nueva === null) return;
+    var cambios = { cantidad: nueva };
+    if (!a.unidad) cambios.unidad = "pieza";
+    actualizar(refArticulo(id), cambios).catch(fallo("No se pudo cambiar la cantidad"));
   }
 
   function crearArticulo(datos) {
@@ -664,6 +704,11 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
   });
 
   contenedor.addEventListener("click", function (ev) {
+    var cantidadBtn = ev.target.closest("[data-cantidad]");
+    if (cantidadBtn) {
+      if (!cantidadBtn.disabled) cambiarCantidad(cantidadBtn.dataset.id, Number(cantidadBtn.dataset.cantidad));
+      return;
+    }
     var alternarBtn = ev.target.closest("[data-alternar]");
     if (alternarBtn) {
       alternar(alternarBtn.dataset.alternar);
@@ -693,7 +738,9 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       "<p>El campo de arriba <strong>busca</strong> mientras escribes. Con Enter (o <strong>+</strong>), si el " +
       "artículo ya existe lo pone por comprar; si no, lo agrega. Puedes escribir la cantidad: <em>2 kg tomate</em>. " +
       "Con el campo vacío, <strong>+</strong> abre el formulario completo.</p>" +
-      "<p>Toca el nombre de un artículo para cambiar cantidad, pasillo, precio o notas, o para eliminarlo.</p>"
+      "<p>En <em>Toda la lista</em>, los botones <strong>−</strong> y <strong>+</strong> de cada artículo cambian " +
+      "la cantidad (de 1 en 1; kg y litros de medio en medio; gramos y ml de 100 en 100).</p>" +
+      "<p>Toca el nombre de un artículo para cambiar cantidad, unidad, pasillo, precio o notas, o para eliminarlo.</p>"
   );
 
   // ===== Datos en tiempo real =====

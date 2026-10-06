@@ -733,6 +733,50 @@ select:focus-visible, textarea:focus-visible {
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
+/* Contador (−) cantidad unidad (+) de "Toda la lista", tipo carrito. Cada botón conserva
+   44×44 px de área táctil; el círculo visible es de 36 px (padding + background-clip). */
+.fila-articulo.con-contador .casilla { width: 46px; }
+.fila-articulo.con-contador .cuerpo-articulo { padding-right: 4px; }
+.precio-detalle { font-weight: 700; color: var(--color-texto); font-variant-numeric: tabular-nums; }
+.control-cantidad {
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding-right: 2px;
+}
+.btn-cantidad {
+  width: 44px;
+  height: 44px;
+  padding: 4px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-segmento);
+  background-clip: content-box;
+  color: var(--color-texto);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.btn-cantidad-mas { background-color: var(--color-primario); color: var(--color-texto-sobre-primario); }
+.btn-cantidad:active { transform: scale(0.9); }
+.btn-cantidad:disabled { opacity: 0.35; cursor: default; transform: none; }
+.valor-cantidad {
+  min-width: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+.numero-cantidad { font-weight: 800; font-size: 16px; font-variant-numeric: tabular-nums; }
+.unidad-cantidad { font-size: 12px; font-weight: 600; color: var(--color-texto-suave); }
+.fila-articulo.marcado .numero-cantidad { color: var(--color-texto-suave); }
+@media (max-width: 374px) {
+  .valor-cantidad { min-width: 36px; }
+  .fila-articulo.con-contador .casilla { width: 40px; }
+}
+
 /* Marcado = "ya lo tengo", no "borrado": texto suave, SIN tachar. */
 .fila-articulo.marcado .nombre-articulo,
 .fila-articulo.marcado .precio-articulo { color: var(--color-texto-suave); font-weight: 500; }

@@ -233,3 +233,40 @@ function textoCantidad(cantidad, unidad) {
   var numero = String(Math.round(n * 100) / 100);
   return numero + " " + (n !== 1 && _PLURAL_UNIDADES[u] ? _PLURAL_UNIDADES[u] : u);
 }
+
+// Paso de los botones (+)/(−) de "Toda la lista" según la unidad. Las que se compran por
+// peso o volumen avanzan de medio en medio (kg, l) o de 100 en 100 (g, ml); el resto, de 1.
+var _PASO_UNIDAD = { kg: 0.5, l: 0.5, g: 100, ml: 100 };
+
+function pasoDeUnidad(unidad) {
+  return _PASO_UNIDAD[unidad] || 1;
+}
+
+// siguienteCantidad(cantidad, unidad, +1 | -1) → nueva cantidad, o null si no puede bajar
+// más. Nunca llega a 0 (las reglas exigen cantidad > 0; para quitarlo está "Eliminar") ni
+// pasa de 9999. Si la cantidad no cae en un múltiplo del paso (p. ej. 0.3 kg escrito a mano),
+// el primer toque la lleva al múltiplo más cercano en esa dirección, y ya no se desfasa.
+function siguienteCantidad(cantidad, unidad, direccion) {
+  var paso = pasoDeUnidad(unidad);
+  var n = Number(cantidad);
+  if (!isFinite(n) || n <= 0) n = 1;
+  var pasos = n / paso;
+  var redondo = Math.abs(pasos - Math.round(pasos)) < 1e-9;
+  var siguiente = direccion > 0
+    ? (redondo ? Math.round(pasos) + 1 : Math.ceil(pasos)) * paso
+    : (redondo ? Math.round(pasos) - 1 : Math.floor(pasos)) * paso;
+  siguiente = Math.round(siguiente * 100) / 100;
+  if (siguiente <= 0) return null;
+  if (siguiente > 9999) return direccion > 0 ? null : 9999;
+  return siguiente;
+}
+
+// Unidad para el contador de la fila: explícita, en plural cuando toca. Solo "pieza" se
+// abrevia (pza/pzas, de uso común en México); las demás van completas.
+// etiquetaUnidad(2, "pieza") → "pzas"; (1, "lata") → "lata"; (3, "paquete") → "paquetes".
+function etiquetaUnidad(cantidad, unidad) {
+  var u = unidad || "pieza";
+  var plural = Number(cantidad) !== 1;
+  if (u === "pieza") return plural ? "pzas" : "pza";
+  return plural && _PLURAL_UNIDADES[u] ? _PLURAL_UNIDADES[u] : u;
+}

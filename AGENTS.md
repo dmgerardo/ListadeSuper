@@ -77,7 +77,7 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `js/iconos.js` | `ICONOS_LUCIDE` (SVG oficiales de `lucide-static` 1.52.0, ver cabecera), `icono()`, `iconoTexto()` |
 | `js/render-utils.js` | `esc`, `urlSegura`, `formatoMoneda`, `hoyLocalISO`, `abrirModal`, `confirmarCierreConCambios`, `mostrarToast` y la barra inferior flotante: `barraInferior`, `ranuraBarra`, `vaciarRanura`, `montarPestanas`, `montarAccionPrincipal`, `montarBotonAyuda`, `montarMenuCuenta` |
 | `js/catalogo-categorias.js` | Las 14 categorías/pasillos del usuario (confirmadas en Fase 2, orden de su nota de iPhone; "Especiales" es el cajón, no hay "Otros"), su ícono (`CATEGORIAS_ICONOS`), alias para importar y las 11 unidades |
-| `js/logica-articulos.js` | Lógica pura, probada en Node: `normalizarNombre`, `interpretarTextoRapido` ("2 kg tomate"), `ordenCategoriasEfectivo`, `agruparArticulos`, `totalesLista`, `parsearNotaImportada`, `separarRepetidos`, `buscarPorNombre`, `textoCantidad` |
+| `js/logica-articulos.js` | Lógica pura, probada en Node: `normalizarNombre`, `interpretarTextoRapido` ("2 kg tomate"), `ordenCategoriasEfectivo`, `agruparArticulos`, `totalesLista`, `parsearNotaImportada`, `separarRepetidos`, `buscarPorNombre`, `textoCantidad`, `pasoDeUnidad`, `siguienteCantidad`, `etiquetaUnidad` (contador −/+) |
 | `js/vista-articulos.js` | Pantalla de una lista: vistas "Por comprar"/"Toda la lista", campo rápido (busca + agrega), formulario agregar/editar/eliminar, marcar todo, importar nota, totales, Deshacer |
 | `js/vista-listas.js` | Pantalla "Mis listas": crear, abrir, renombrar |
 | `js/pagina-inicio.js` | Script de arranque de `index.html` (bienvenida o "Mis listas") |
@@ -109,6 +109,11 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
   `cooking-pot`, abarrotes `package`, botanas_semillas `popcorn`, panaderia `croissant`,
   limpieza `spray-can`, personal `toothbrush`, farmacia `pill`.
 - **Marcado** se pinta en texto suave **sin tachar** ("ya lo tengo", no "borrado").
+- **Contador (−) cantidad unidad (+)** en cada renglón de "Toda la lista" (no en "Por
+  comprar"), tipo carrito. Solo cambia `cantidad` (una escritura por toque, sin toast); NO
+  marca ni desmarca. Paso: 1 (piezas, paquetes…), 0.5 (kg, l), 100 (g, ml); nunca baja de un
+  paso (las reglas exigen > 0; quitar = "Eliminar"). Unidad explícita: solo "pieza" se abrevia
+  (pza/pzas). En esa vista el subtotal baja al renglón de detalle para que quepa en 320 px.
 - **Barra inferior**: la pestaña activa lleva tinte primario y su etiqueta; en pantallas
   < 375 px la etiqueta se oculta (con 7 controles no cabe en un iPhone SE), queda el ícono con
   su `aria-label`.

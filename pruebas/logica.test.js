@@ -167,3 +167,39 @@ test("cada pasillo tiene un ícono que existe en js/iconos.js", () => {
     assert.ok(iconos[mapa[id]], "ícono inexistente en iconos.js: " + mapa[id]);
   }
 });
+
+test("siguienteCantidad: paso por unidad, sin llegar a 0 ni pasar de 9999", () => {
+  const S = (c, u, d) => L.siguienteCantidad(c, u, d);
+  assert.equal(S(1, "pieza", 1), 2);
+  assert.equal(S(2, "pieza", -1), 1);
+  assert.equal(S(1, "pieza", -1), null);       // no baja de 1 pieza
+  assert.equal(S(undefined, undefined, 1), 2); // sin cantidad/unidad = 1 pieza
+  assert.equal(S(0.5, "kg", 1), 1);
+  assert.equal(S(1, "kg", -1), 0.5);
+  assert.equal(S(0.5, "kg", -1), null);
+  assert.equal(S(2, "l", 1), 2.5);
+  assert.equal(S(100, "g", 1), 200);
+  assert.equal(S(100, "g", -1), null);
+  assert.equal(S(250, "ml", 1), 300);          // fuera de paso: al múltiplo de arriba
+  assert.equal(S(250, "ml", -1), 200);         // y al de abajo
+  assert.equal(S(0.3, "kg", 1), 0.5);
+  assert.equal(S(0.3, "kg", -1), null);        // abajo de 0.3 kg sería 0
+  assert.equal(S(1.5, "pieza", 1), 2);
+  assert.equal(S(9999, "pieza", 1), null);
+  // Sin errores de punto flotante tras muchos toques.
+  let c = 0.5;
+  for (let i = 0; i < 7; i++) c = S(c, "kg", 1);
+  assert.equal(c, 4);
+});
+
+test("etiquetaUnidad: explícita y en plural (solo pieza se abrevia)", () => {
+  assert.equal(L.etiquetaUnidad(1, "pieza"), "pza");
+  assert.equal(L.etiquetaUnidad(2, "pieza"), "pzas");
+  assert.equal(L.etiquetaUnidad(1, undefined), "pza");
+  assert.equal(L.etiquetaUnidad(3, "paquete"), "paquetes");
+  assert.equal(L.etiquetaUnidad(2, "lata"), "latas");
+  assert.equal(L.etiquetaUnidad(1, "caja"), "caja");
+  assert.equal(L.etiquetaUnidad(1.5, "kg"), "kg");
+  assert.equal(L.etiquetaUnidad(2, "docena"), "docenas");
+  assert.equal(L.etiquetaUnidad(1, "botella"), "botella");
+});

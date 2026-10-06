@@ -6,7 +6,12 @@
 > de verdad técnica (esa es `AGENTS.md`), pero sigue teniendo el detalle completo de cada
 > fase y el modelo de datos.
 
-## Estado actual: Fase 2.1 (rediseño "Mercado fresco") — EN `main` (v11, 2026-10-06)
+## Estado actual: v12 en `main` (2026-10-06)
+
+- v12: contador (−)/(+) con unidad explícita en cada renglón de "Toda la lista" (pedido del
+  usuario, "tipo shopping kart"). Detalle en `AGENTS.md` §3b. Sin cambios de datos ni reglas.
+
+## Fase 2.1 (rediseño "Mercado fresco") — EN `main` (v11, 2026-10-06)
 
 Solo presentación sobre la Fase 2 (sin cambios de lógica, datos ni reglas). Ver `AGENTS.md`
 §3b (tokens, tipografía, íconos y colores por pasillo) y §3c (**lenguaje visual obligatorio
