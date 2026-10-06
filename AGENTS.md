@@ -19,8 +19,9 @@ contra la última versión disponible en esta sesión — revisar si se actualiz
 - **Orden de carga obligatorio** en cada HTML: SDK de Firebase (CDN) → `firebase-config.js`
   (aquí se llama `firebase.initializeApp`) → `db.js` → `auth.js` (usa `refNodo` de `db.js`
   y `firebase.auth()`) → `iconos.js` → `render-utils.js` (usa `icono()`) →
-  `catalogo-categorias.js` → vistas → `app-version.js` → `version.js`. `tema.js` va en
-  `<head>`, antes de todo, sin `defer`.
+  `catalogo-categorias.js` → vistas (`vista-listas.js`, etc.) → `app-version.js` →
+  `version.js` → el script de arranque de esa página (`js/pagina-*.js`, **al final,
+  siempre**). `tema.js` va en `<head>`, antes de todo, sin `defer`.
 - **Identidad = `auth.uid`**. No existe "userId" propio del cliente ni usuarios anónimos.
 - **Reglas cerradas por defecto** (`database.rules.json`): cualquier nodo nuevo necesita su
   propia regla explícita.
@@ -49,6 +50,8 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `js/render-utils.js` | `esc`, `urlSegura`, `formatoMoneda`, `hoyLocalISO`, `abrirModal`, `confirmarCierreConCambios`, `mostrarToast`, `montarBotonAyuda`, `montarPastillaConexion` |
 | `js/catalogo-categorias.js` | Categorías/pasillos y unidades por defecto (placeholder, confirmar en Fase 2) |
 | `js/vista-listas.js` | Pantalla "Mis listas": crear, abrir, renombrar |
+| `js/pagina-inicio.js` | Script de arranque de `index.html` (bienvenida o "Mis listas") |
+| `js/pagina-lista.js` | Script de arranque de `lista.html` |
 | `index.html` | Login + "Mis listas" |
 | `lista.html` | Abre una lista (solo confirma acceso; artículos llegan en Fase 2) |
 | `historial.html` | Historial de versiones para usuarios |
@@ -71,6 +74,16 @@ confirmado — se usará en Fase 4).
 
 ## 6. Errores a evitar (bitácora)
 
+- **La CSP (`firebase.json`) bloquea `<script>` inline de verdad — se comprobó en
+  producción, no solo en teoría.** `index.html` y `lista.html` tenían su lógica de arranque
+  en un `<script>` inline al final del HTML; al desplegar a `pilo-compras.web.app` cargaba
+  **pantalla en blanco total** (nada de JS corría) con este error en consola: `Executing
+  inline script violates the following Content Security Policy directive 'script-src
+  'self' ...'. Either the 'unsafe-inline' keyword, a hash (...), or a nonce (...) is
+  required`. La prueba local con `http.server` no lo detecta porque ahí no hay cabeceras
+  CSP (esas solo las manda Firebase Hosting) — **probar siempre contra el sitio
+  desplegado, no solo en local, antes de dar algo por terminado**. Corregido moviendo esa
+  lógica a `js/pagina-inicio.js` y `js/pagina-lista.js`.
 - **`Event.currentTarget` es `null` fuera del despacho síncrono del evento.** Guardarlo en
   una variable local antes de usarlo dentro de un `.then()`/`.catch()` asíncrono (pasó en
   el botón de login: `ev.currentTarget.disabled = false` dentro del `.catch()` tiraba

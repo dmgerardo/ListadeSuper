@@ -7,3 +7,9 @@ firebase-debug.*.log
 ui-debug.log
 database-debug.log
 node_modules/
+
+# Nunca subir claves de cuentas de servicio (contienen una private_key activa).
+*.json.key
+pilo-compras-*.json
+serviceAccountKey*.json
+*-firebase-adminsdk-*.json
