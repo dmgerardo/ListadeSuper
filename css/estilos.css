@@ -16,6 +16,10 @@
   --sombra: 0 6px 20px rgba(32, 30, 29, 0.14);
   --fuente-titulos: "Caprasimo", serif;
   --fuente-texto: "Figtree", system-ui, sans-serif;
+  --alto-barra: 60px;
+  --color-barra: rgba(245, 234, 216, 0.72);
+  --borde-barra: rgba(255, 255, 255, 0.55);
+  --sombra-barra: 0 8px 28px rgba(32, 30, 29, 0.18), 0 1px 3px rgba(32, 30, 29, 0.10);
 }
 
 :root[data-modo="oscuro"] {
@@ -29,6 +33,9 @@
   --color-texto-suave: rgba(243, 236, 226, 0.72);
   --color-borde: rgba(243, 236, 226, 0.18);
   --color-texto-sobre-primario: #201e1d;
+  --color-barra: rgba(42, 37, 34, 0.72);
+  --borde-barra: rgba(243, 236, 226, 0.12);
+  --sombra-barra: 0 8px 28px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.30);
 }
 
 /* ===== Reseteo base ===== */
@@ -55,7 +62,7 @@ input, select, textarea {
   max-width: 640px;
   margin: 0 auto;
   padding: var(--espacio);
-  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--alto-barra) + 40px + env(safe-area-inset-bottom));
   padding-top: calc(var(--espacio) + env(safe-area-inset-top));
 }
 
@@ -100,58 +107,93 @@ select:focus-visible, textarea:focus-visible {
 }
 .btn-accion-icono:hover { background: var(--color-borde); color: var(--color-texto); }
 
-.btn-fab-agregar, .btn-fab-ayuda {
+/* ===== Barra inferior flotante (estilo Instagram / iOS) ===== */
+/* Envoltura a todo lo ancho que no captura toques; solo la barra y el "+" sí. */
+.envoltura-barra {
   position: fixed;
-  bottom: calc(84px + env(safe-area-inset-bottom));
-  width: 56px;
-  height: 56px;
+  left: 0;
+  right: 0;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  padding: 0 calc(16px + env(safe-area-inset-right)) 0 calc(16px + env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  z-index: 40;
+  pointer-events: none;
+}
+.barra-flotante, .btn-accion-principal { pointer-events: auto; }
+.barra-flotante {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: var(--alto-barra);
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--color-barra);
+  border: 1px solid var(--borde-barra);
+  box-shadow: var(--sombra-barra);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+.ranura-barra { display: flex; align-items: center; }
+.ranura-barra:empty { display: none; }
+/* Separador fino entre las pestañas de la pantalla y los controles globales. */
+.barra-flotante [data-ranura="pestanas"]:not(:empty) {
+  padding-right: 6px;
+  margin-right: 6px;
+  border-right: 1px solid var(--color-borde);
+}
+.item-barra {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-texto-suave);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.item-barra:hover { color: var(--color-texto); }
+.item-barra:active { transform: scale(0.92); }
+.item-barra.activo { color: var(--color-primario-oscuro); background: var(--color-borde); }
+.item-barra[aria-disabled="true"] { opacity: 0.4; cursor: default; pointer-events: none; }
+.item-estado { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.punto-estado {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  background: rgba(198, 113, 57, 0.85);
-  color: #fff8ee;
-  backdrop-filter: blur(8px);
-  box-shadow: var(--sombra);
+  background: var(--color-exito);
+}
+.punto-estado-sin-conexion { background: var(--color-peligro); }
+.btn-accion-principal {
+  flex: none;
+  width: var(--alto-barra);
+  height: var(--alto-barra);
+  border-radius: 50%;
+  border: 1px solid var(--borde-barra);
+  background: var(--color-primario);
+  color: var(--color-texto-sobre-primario);
+  box-shadow: var(--sombra-barra);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 40;
+  transition: transform 0.1s ease, background-color 0.15s ease;
 }
-.btn-fab-agregar { right: calc(16px + env(safe-area-inset-right)); }
-.btn-fab-ayuda {
-  left: calc(16px + env(safe-area-inset-left));
-  background: rgba(32, 30, 29, 0.55);
-  width: 44px;
-  height: 44px;
+.btn-accion-principal:hover { background: var(--color-primario-oscuro); }
+.btn-accion-principal:active { transform: scale(0.92); }
+/* Pantallas angostas (iPhone SE, 320px): compactar sin bajar de 40px de área táctil. */
+@media (max-width: 360px) {
+  .item-barra { min-width: 40px; padding: 0 4px; }
+  .barra-flotante { padding: 0 4px; }
 }
-
-/* ===== Navegación inferior ===== */
-.nav-inferior {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  justify-content: space-around;
-  background: var(--color-superficie);
-  border-top: 1px solid var(--color-borde);
-  padding: 6px env(safe-area-inset-right) calc(6px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
-  z-index: 30;
-}
-.nav-inferior a {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 10px;
-  font-size: 11px;
-  text-decoration: none;
-  color: var(--color-texto-suave);
-  min-width: 44px;
-  min-height: 44px;
-  border-radius: var(--radio-chico);
-}
-.nav-inferior a.activo { color: var(--color-primario-oscuro); font-weight: 600; }
 
 /* ===== Tarjetas ===== */
 .tarjeta {
@@ -208,7 +250,7 @@ select:focus-visible, textarea:focus-visible {
 /* ===== Toast ===== */
 .contenedor-toasts {
   position: fixed;
-  bottom: calc(80px + env(safe-area-inset-bottom));
+  bottom: calc(var(--alto-barra) + 24px + env(safe-area-inset-bottom));
   left: 0;
   right: 0;
   display: flex;
@@ -233,28 +275,6 @@ select:focus-visible, textarea:focus-visible {
 :root[data-modo="oscuro"] .toast { background: var(--color-superficie); color: var(--color-texto); }
 @keyframes aparecerToast { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .toast button { background: transparent; border: none; color: inherit; font-weight: 700; cursor: pointer; }
-
-/* ===== Pastilla de conexión + badge de versión ===== */
-.barra-estado {
-  position: fixed;
-  top: calc(8px + env(safe-area-inset-top));
-  right: calc(8px + env(safe-area-inset-right));
-  display: flex;
-  gap: 6px;
-  z-index: 50;
-}
-.pastilla {
-  font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--color-superficie);
-  color: var(--color-texto-suave);
-  box-shadow: var(--sombra);
-  border: none;
-  cursor: default;
-}
-.pastilla-sin-conexion { background: var(--color-peligro); color: #fff8ee; }
-.pastilla-version { cursor: pointer; }
 
 /* ===== Pantalla de bienvenida / login ===== */
 .pantalla-bienvenida {
@@ -283,8 +303,11 @@ select:focus-visible, textarea:focus-visible {
 }
 .btn-google:hover { box-shadow: var(--sombra); }
 
-.menu-cuenta { display: flex; align-items: center; gap: 8px; }
-.foto-cuenta { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+
+.foto-cuenta { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; display: block; }
+.foto-cuenta-grande { width: 56px; height: 56px; }
+.cabecera-cuenta { display: flex; align-items: center; gap: var(--espacio); }
+.cabecera-cuenta h3, .cabecera-cuenta p { margin: 0; overflow-wrap: anywhere; }
 
 /* ===== Utilidades ===== */
 .texto-suave { color: var(--color-texto-suave); }
@@ -292,7 +315,6 @@ select:focus-visible, textarea:focus-visible {
 .vacio { text-align: center; color: var(--color-texto-suave); padding: 32px var(--espacio); }
 
 /* Reemplazan style="" inline (bloqueado por la CSP: style-src sin 'unsafe-inline'). */
-.btn-accion-icono-chico { width: 28px; height: 28px; }
 .enlace-con-icono { display: inline-flex; align-items: center; gap: 4px; }
 .fila-tarjeta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .fila-tarjeta-enlace { flex: 1; text-decoration: none; color: inherit; display: block; }

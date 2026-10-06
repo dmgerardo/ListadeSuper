@@ -30,25 +30,7 @@
     app.innerHTML = '<div data-contenedor-vista></div>';
     var contenedorVista = app.querySelector("[data-contenedor-vista]");
 
-    var barra = document.querySelector(".barra-estado");
-    if (!barra) {
-      barra = document.createElement("div");
-      barra.className = "barra-estado";
-      document.body.appendChild(barra);
-    }
-    var cuentaPrevia = barra.querySelector(".menu-cuenta");
-    if (cuentaPrevia) cuentaPrevia.remove();
-    var cuenta = document.createElement("div");
-    cuenta.className = "menu-cuenta pastilla";
-    cuenta.innerHTML =
-      '<img class="foto-cuenta" src="' + urlSegura(usuario.photoURL || "") + '" alt="" width="20" height="20">' +
-      '<button type="button" class="btn-accion-icono btn-accion-icono-chico" id="boton-salir" aria-label="Cerrar sesión" title="Cerrar sesión">' +
-      icono("log-out", 16) +
-      "</button>";
-    barra.insertBefore(cuenta, barra.firstChild);
-    document.getElementById("boton-salir").addEventListener("click", function () {
-      cerrarSesion();
-    });
+    montarMenuCuenta(usuario);
 
     limpiarVistaActual = montarVistaListas(contenedorVista, usuario);
   }
@@ -58,15 +40,13 @@
       limpiarVistaActual();
       limpiarVistaActual = null;
     }
-    document.querySelectorAll(".btn-fab-ayuda, .contenedor-toasts").forEach(function (el) {
+    document.querySelectorAll(".contenedor-toasts").forEach(function (el) {
       el.remove();
     });
-    if (!usuario) {
-      var cuentaPrevia = document.querySelector(".menu-cuenta");
-      if (cuentaPrevia) cuentaPrevia.remove();
-    }
+    vaciarRanura("ayuda");
+    vaciarRanura("principal");
+    montarMenuCuenta(null);
     if (usuario) mostrarApp(usuario);
     else mostrarBienvenida();
-    montarPastillaConexion();
   });
 })();

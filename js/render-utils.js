@@ -132,17 +132,63 @@ function mostrarToast(texto, opciones) {
   return { quitar: quitar };
 }
 
-// ===== Botón flotante de ayuda =====
-// montarBotonAyuda(tituloHtml): agrega el FAB "?" si no existe ya uno en la pantalla.
+// ===== Barra inferior flotante =====
+// Una sola barra flotante (estilo Instagram / iOS) concentra todos los controles globales:
+// pestañas de la pantalla, ayuda, estado+versión y cuenta. La acción principal (+) va en
+// un botón circular aparte, a la derecha de la barra. Cada control vive en su "ranura"
+// (data-ranura) para que cada script monte o quite solo lo suyo, en cualquier orden.
+function barraInferior() {
+  var envoltura = document.querySelector(".envoltura-barra");
+  if (envoltura) return envoltura;
+  envoltura = document.createElement("div");
+  envoltura.className = "envoltura-barra";
+  envoltura.innerHTML =
+    '<nav class="barra-flotante" aria-label="Barra de controles">' +
+    '<div class="ranura-barra" data-ranura="pestanas"></div>' +
+    '<div class="ranura-barra" data-ranura="ayuda"></div>' +
+    '<div class="ranura-barra" data-ranura="estado"></div>' +
+    '<div class="ranura-barra" data-ranura="cuenta"></div>' +
+    "</nav>" +
+    '<div class="ranura-barra" data-ranura="principal"></div>';
+  document.body.appendChild(envoltura);
+  return envoltura;
+}
+
+function ranuraBarra(nombre) {
+  return barraInferior().querySelector('[data-ranura="' + nombre + '"]');
+}
+
+// vaciarRanura(nombre): quita lo montado en esa ranura (al cambiar de pantalla o sesión).
+function vaciarRanura(nombre) {
+  ranuraBarra(nombre).innerHTML = "";
+}
+
+// montarPestanas(html): html de los <a class="item-barra"> de navegación de la pantalla.
+function montarPestanas(html) {
+  ranuraBarra("pestanas").innerHTML = html;
+}
+
+// montarAccionPrincipal(nombreIcono, etiqueta, alActivar): el botón circular "+". Devuelve
+// el botón; vaciarRanura("principal") lo quita.
+function montarAccionPrincipal(nombreIcono, etiqueta, alActivar) {
+  var ranura = ranuraBarra("principal");
+  ranura.innerHTML =
+    '<button type="button" class="btn-accion-principal" aria-label="' + esc(etiqueta) + '" title="' + esc(etiqueta) + '">' +
+    icono(nombreIcono, 26) +
+    "</button>";
+  var boton = ranura.firstChild;
+  boton.addEventListener("click", alActivar);
+  return boton;
+}
+
+// montarBotonAyuda(contenidoHtml): ayuda contextual de la pantalla actual (reemplaza la previa).
 function montarBotonAyuda(contenidoHtml) {
-  var existente = document.querySelector(".btn-fab-ayuda");
-  if (existente) existente.remove();
-  var boton = document.createElement("button");
-  boton.type = "button";
-  boton.className = "btn-fab-ayuda";
-  boton.setAttribute("aria-label", "Ayuda de esta pantalla");
-  boton.title = "Ayuda de esta pantalla";
-  boton.innerHTML = icono("help-circle", 22);
+  var ranura = ranuraBarra("ayuda");
+  ranura.innerHTML =
+    '<button type="button" class="item-barra" aria-label="Ayuda de esta pantalla" title="Ayuda de esta pantalla">' +
+    icono("help-circle", 22) +
+    "</button>";
+  var boton = ranura.firstChild;
   boton.addEventListener("click", function () {
     abrirModal('<div class="texto-ayuda">' + contenidoHtml + '</div><div class="fila-botones">' +
       '<button type="button" class="btn" data-cerrar>Entendido</button></div>', null)
@@ -151,35 +197,53 @@ function montarBotonAyuda(contenidoHtml) {
         document.body.style.overflow = "";
       });
   });
-  document.body.appendChild(boton);
   return boton;
 }
 
-// ===== Pastilla de conexión =====
-function montarPastillaConexion() {
-  var existente = document.querySelector(".pastilla-conexion");
-  if (existente) return existente.parentElement;
-  var barra = document.querySelector(".barra-estado");
-  if (!barra) {
-    barra = document.createElement("div");
-    barra.className = "barra-estado";
-    document.body.appendChild(barra);
+// montarMenuCuenta(usuario): foto del usuario en la barra; al tocarla abre una hoja con su
+// nombre, correo y "Cerrar sesión". Con usuario null, quita el control.
+function montarMenuCuenta(usuario) {
+  var ranura = ranuraBarra("cuenta");
+  if (!usuario) {
+    ranura.innerHTML = "";
+    return null;
   }
-  var pastilla = document.createElement("button");
-  pastilla.classList.add("pastilla-conexion");
-  pastilla.type = "button";
-  pastilla.className = "pastilla";
-  pastilla.disabled = true;
-  barra.appendChild(pastilla);
-
-  function actualizar() {
-    var enLinea = navigator.onLine;
-    pastilla.classList.toggle("pastilla-sin-conexion", !enLinea);
-    pastilla.innerHTML = icono(enLinea ? "wifi" : "wifi-off", 14) +
-      "<span style=\"margin-left:4px\">" + (enLinea ? "En línea" : "Sin conexión") + "</span>";
+  ranura.innerHTML =
+    '<button type="button" class="item-barra" aria-label="Mi cuenta" title="Mi cuenta">' +
+    (usuario.photoURL
+      ? '<img class="foto-cuenta" src="' + esc(urlSegura(usuario.photoURL)) + '" alt="" width="28" height="28" referrerpolicy="no-referrer">'
+      : icono("user", 22)) +
+    "</button>";
+  var boton = ranura.firstChild;
+  var foto = boton.querySelector("img");
+  if (foto) {
+    // Sin onerror inline (CSP): si la foto no carga, se cambia por el ícono genérico.
+    foto.addEventListener("error", function () {
+      foto.outerHTML = icono("user", 22);
+    });
   }
-  window.addEventListener("online", actualizar);
-  window.addEventListener("offline", actualizar);
-  actualizar();
-  return barra;
+  boton.addEventListener("click", function () {
+    var modal = abrirModal(
+      '<div class="cabecera-cuenta">' +
+        (usuario.photoURL
+          ? '<img class="foto-cuenta foto-cuenta-grande" src="' + esc(urlSegura(usuario.photoURL)) + '" alt="" width="56" height="56" referrerpolicy="no-referrer">'
+          : "") +
+        "<div><h3>" + esc(usuario.displayName || "Mi cuenta") + "</h3>" +
+        '<p class="texto-suave">' + esc(usuario.email || "") + "</p></div>" +
+        "</div>" +
+        '<div class="fila-botones">' +
+        '<button type="button" class="btn btn-secundario" data-cerrar>Cerrar</button>' +
+        '<button type="button" class="btn btn-peligro" data-salir>' + icono("log-out", 18) + "<span>Cerrar sesión</span></button>" +
+        "</div>",
+      null
+    );
+    modal.elemento.querySelector("[data-cerrar]").addEventListener("click", function () {
+      modal.cerrar("manual");
+    });
+    modal.elemento.querySelector("[data-salir]").addEventListener("click", function () {
+      modal.cerrar("manual");
+      cerrarSesion();
+    });
+  });
+  return boton;
 }

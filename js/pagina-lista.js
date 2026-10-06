@@ -26,14 +26,16 @@
       '<p class="texto-suave">Los artículos, favoritos y plantillas de esta lista llegan en la ' +
       "siguiente fase. Por ahora puedes confirmar que la lista existe y que tienes acceso a ella.</p>" +
       "</div>" +
-      "</div>" +
-      '<nav class="nav-inferior" aria-label="Navegación de la lista">' +
-      '<a href="lista.html?lista=' + encodeURIComponent(listaId) + '" class="activo">' + icono("list", 20) + "<span>Lista</span></a>" +
-      '<a href="#" aria-disabled="true">' + icono("star", 20) + "<span>Favoritos</span></a>" +
-      '<a href="#" aria-disabled="true">' + icono("layout-template", 20) + "<span>Plantillas</span></a>" +
-      '<a href="#" aria-disabled="true">' + icono("users", 20) + "<span>Miembros</span></a>" +
-      '<a href="index.html">' + icono("chevron-left", 20) + "<span>Mis listas</span></a>" +
-      "</nav>";
+      "</div>";
+
+    var enlaceLista = "lista.html?lista=" + encodeURIComponent(listaId);
+    montarPestanas(
+      '<a href="' + esc(enlaceLista) + '" class="item-barra activo" aria-current="page" aria-label="Lista" title="Lista">' + icono("list", 22) + "</a>" +
+        '<a href="#" class="item-barra" aria-disabled="true" aria-label="Favoritos (próximamente)" title="Favoritos (próximamente)">' + icono("star", 22) + "</a>" +
+        '<a href="#" class="item-barra" aria-disabled="true" aria-label="Plantillas (próximamente)" title="Plantillas (próximamente)">' + icono("layout-template", 22) + "</a>" +
+        '<a href="#" class="item-barra" aria-disabled="true" aria-label="Miembros (próximamente)" title="Miembros (próximamente)">' + icono("users", 22) + "</a>"
+    );
+    montarMenuCuenta(usuario);
 
     var tituloEl = app.querySelector("[data-nombre-lista]");
     detenerEscucha = escuchar(refNodo("listas/" + listaId + "/info"), function (info) {
@@ -58,9 +60,12 @@
         detenerEscucha();
         detenerEscucha = null;
       }
-      if (!usuario) mostrarSinSesion();
-      else mostrarLista(usuario);
-      montarPastillaConexion();
+      if (!usuario) {
+        vaciarRanura("pestanas");
+        vaciarRanura("ayuda");
+        montarMenuCuenta(null);
+        mostrarSinSesion();
+      } else mostrarLista(usuario);
     });
   }
 })();

@@ -48,19 +48,27 @@ estático local — la CSP y las cabeceras de caché solo existen en el deploy r
 
 ## Pendiente real (no inventar que ya se hizo)
 
-- **`node --check` y pruebas de lógica pura en Node**: no corrieron nunca, en ninguna
-  sesión hasta ahora — verificar si el entorno actual tiene Node.js instalado; si no, no se
-  puede hacer todavía.
+- **`node --check`**: ya corre (Node 22 disponible en la sesión en la nube) y pasa. Pruebas
+  de lógica pura en Node: todavía no existen.
 - **`database.rules.json` nunca se probó con el Emulador de Firebase ni el Rules
   Playground** — las reglas están en producción protegiendo datos reales sin esa
   verificación. Alta prioridad antes de construir Fase 4 (invitaciones/miembros), que es
   donde las reglas son más complejas.
-- **Playwright**: no se corrió nunca.
+- **Playwright**: corrió solo en local con Firebase simulado (mock) para validar la barra
+  inferior; falta una prueba contra el sitio desplegado.
 - **Login en iPhone real** (Safari y PWA instalada): no probado.
 - Versión del SDK compat de Firebase (`10.14.1`): no se verificó contra la más reciente
   disponible.
 - Íconos de `icons/*.png`: son un placeholder generado por script (carrito simple), no un
   diseño final.
+
+## Cambio de UI (2026-10-06): barra inferior flotante
+
+Por petición del usuario, todos los controles globales (ayuda, +, sesión, versión y estado
+de conexión) se movieron a una barra inferior flotante tipo Instagram / iOS (ver invariante
+en `AGENTS.md` §2). La sesión ahora se cierra desde la foto del usuario → hoja "Mi cuenta"
+→ "Cerrar sesión". En `lista.html` las pestañas (Lista, Favoritos, Plantillas, Miembros)
+viven en la misma píldora; "Mis listas" quedó solo como enlace arriba del título.
 
 ## Decisiones ya tomadas con el usuario (no volver a preguntar)
 

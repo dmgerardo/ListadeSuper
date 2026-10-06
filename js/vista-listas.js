@@ -86,13 +86,9 @@ function montarVistaListas(contenedor, usuario) {
     '<div class="contenedor">' +
     '<h1>Mis listas</h1>' +
     '<div data-lista-de-listas></div>' +
-    "</div>" +
-    '<button type="button" class="btn-fab-agregar" aria-label="Nueva lista" title="Nueva lista">' +
-    icono("plus", 26) +
-    "</button>";
+    "</div>";
 
   var zonaListas = contenedor.querySelector("[data-lista-de-listas]");
-  var botonAgregar = contenedor.querySelector(".btn-fab-agregar");
 
   function repintar() {
     programarRender("vista-listas", function () {
@@ -168,7 +164,7 @@ function montarVistaListas(contenedor, usuario) {
     });
   });
 
-  botonAgregar.addEventListener("click", function () {
+  montarAccionPrincipal("plus", "Nueva lista", function () {
     _formularioLista(null, function (nombre) {
       crearLista(usuario, nombre)
         .then(function () {
@@ -190,5 +186,6 @@ function montarVistaListas(contenedor, usuario) {
   return function limpiar() {
     if (detenerEscucha) detenerEscucha();
     Object.keys(detenerEscuchasInfo).forEach(desuscribirInfo);
+    vaciarRanura("principal");
   };
 }

@@ -1,20 +1,27 @@
-// Badge de versión (tocar = forzar actualización) + registro del Service Worker.
+// Estado de conexión + versión en la barra inferior (tocar = forzar actualización) y
+// registro del Service Worker. Usa barraInferior() de render-utils.js (se carga antes).
 (function () {
-  function montarBadge() {
-    var barra = document.querySelector(".barra-estado");
-    if (!barra) {
-      barra = document.createElement("div");
-      barra.className = "barra-estado";
-      document.body.appendChild(barra);
+  function montarEstadoYVersion() {
+    var ranura = ranuraBarra("estado");
+    ranura.innerHTML =
+      '<button type="button" class="item-barra item-estado">' +
+      '<span class="punto-estado" aria-hidden="true"></span>' +
+      '<span class="texto-version">v' + esc(APP_VERSION) + "</span>" +
+      "</button>";
+    var boton = ranura.firstChild;
+    var punto = boton.querySelector(".punto-estado");
+    boton.addEventListener("click", forzarActualizacion);
+
+    function actualizar() {
+      var enLinea = navigator.onLine;
+      var estado = enLinea ? "En línea" : "Sin conexión";
+      punto.classList.toggle("punto-estado-sin-conexion", !enLinea);
+      boton.title = estado + " · v" + APP_VERSION + " · tocar para forzar actualización";
+      boton.setAttribute("aria-label", estado + ". Versión " + APP_VERSION + ", tocar para forzar actualización");
     }
-    var badge = document.createElement("button");
-    badge.type = "button";
-    badge.className = "pastilla pastilla-version";
-    badge.textContent = "v" + APP_VERSION;
-    badge.title = "Tocar para forzar actualización";
-    badge.setAttribute("aria-label", "Versión " + APP_VERSION + ", tocar para forzar actualización");
-    badge.addEventListener("click", forzarActualizacion);
-    barra.appendChild(badge);
+    window.addEventListener("online", actualizar);
+    window.addEventListener("offline", actualizar);
+    actualizar();
   }
 
   async function forzarActualizacion() {
@@ -32,9 +39,9 @@
   }
 
   if (document.readyState === "complete" || document.readyState === "interactive") {
-    montarBadge();
+    montarEstadoYVersion();
   } else {
-    document.addEventListener("DOMContentLoaded", montarBadge);
+    document.addEventListener("DOMContentLoaded", montarEstadoYVersion);
   }
 
   if ("serviceWorker" in navigator) {

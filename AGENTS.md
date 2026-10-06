@@ -39,6 +39,11 @@ contra la última versión disponible en esta sesión — revisar si se actualiz
 - **Todo JS/CSS nuevo** se agrega a la lista `ARCHIVOS_APP_SHELL` de `sw.js` y a los
   `<script>`/`<link>` de los HTML que lo necesiten.
 - **Español** en UI, comentarios, commits y documentación.
+- **Controles globales solo en la barra inferior flotante** (`render-utils.js`): pestañas de
+  la pantalla, ayuda, estado+versión y cuenta van dentro de la píldora; la acción principal
+  (+) va en el botón circular a su derecha. Cada script monta lo suyo en su ranura
+  (`data-ranura="pestanas|ayuda|estado|cuenta|principal"`) y la vacía al cambiar de
+  pantalla o de sesión. No crear FABs ni barras fijas nuevas fuera de ella.
 
 ## 3. Estructura de archivos
 
@@ -51,11 +56,12 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `js/db.js` | `refNodo`, `escuchar`, `obtenerConCache`, `agregar`, `actualizar`, `eliminar`, `actualizarMultiple`, `programarRender`, caché en `localStorage` |
 | `js/auth.js` | Login/logout Google, `requerirSesion()`, perfil en `usuarios/{uid}` |
 | `js/iconos.js` | `ICONOS_LUCIDE`, `icono()`, `iconoTexto()` |
-| `js/render-utils.js` | `esc`, `urlSegura`, `formatoMoneda`, `hoyLocalISO`, `abrirModal`, `confirmarCierreConCambios`, `mostrarToast`, `montarBotonAyuda`, `montarPastillaConexion` |
+| `js/render-utils.js` | `esc`, `urlSegura`, `formatoMoneda`, `hoyLocalISO`, `abrirModal`, `confirmarCierreConCambios`, `mostrarToast` y la barra inferior flotante: `barraInferior`, `ranuraBarra`, `vaciarRanura`, `montarPestanas`, `montarAccionPrincipal`, `montarBotonAyuda`, `montarMenuCuenta` |
 | `js/catalogo-categorias.js` | Categorías/pasillos y unidades por defecto (placeholder, confirmar en Fase 2) |
 | `js/vista-listas.js` | Pantalla "Mis listas": crear, abrir, renombrar |
 | `js/pagina-inicio.js` | Script de arranque de `index.html` (bienvenida o "Mis listas") |
 | `js/pagina-lista.js` | Script de arranque de `lista.html` |
+| `js/version.js` | Estado de conexión + versión en la barra inferior (tocar = forzar actualización) y registro del Service Worker |
 | `index.html` | Login + "Mis listas" |
 | `lista.html` | Abre una lista (solo confirma acceso; artículos llegan en Fase 2) |
 | `historial.html` | Historial de versiones para usuarios |
@@ -120,8 +126,10 @@ confirmado — se usará en Fase 4).
   no un typo: el formato y los demás campos del config son correctos).
 - El paso `deploy --only database` del workflow de GitHub Actions no se ejecutó nunca
   (requiere el proyecto de Firebase y los secretos ya configurados en GitHub).
-- `node --check` y las pruebas de lógica pura en Node no corrieron esta sesión: **no hay
-  Node.js instalado en el entorno** donde se escribió este código. Instalarlo y correr las
-  pruebas antes de confiar en que el JS no tiene errores de sintaxis.
+- `node --check` ya corre (2026-10-06, Node 22 en la sesión en la nube) y pasa en todos los
+  `.js`. Pruebas de lógica pura en Node: todavía no existen.
+- Playwright corrió por primera vez (2026-10-06) solo para la barra inferior, **en local y
+  con el SDK de Firebase reemplazado por un mock** (sin login real ni CSP). No sustituye
+  probar contra `https://pilo-compras.web.app`.
 - Los íconos de `icons/*.png` son un placeholder generado por script (carrito simple sobre
   fondo `--color-primario`), no un diseño final.
