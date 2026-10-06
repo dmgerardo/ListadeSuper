@@ -84,7 +84,9 @@ function montarVistaListas(contenedor, usuario) {
 
   contenedor.innerHTML =
     '<div class="contenedor">' +
+    '<p class="saludo">' + esc(usuario.displayName ? "Hola, " + usuario.displayName.split(" ")[0] : "Hola") + "</p>" +
     '<h1>Mis listas</h1>' +
+    '<p class="subtitulo">Tus listas de compra compartidas</p>' +
     '<div data-lista-de-listas></div>' +
     "</div>";
 
@@ -94,7 +96,11 @@ function montarVistaListas(contenedor, usuario) {
     programarRender("vista-listas", function () {
       var ids = Object.keys(infoPorLista);
       if (ids.length === 0) {
-        zonaListas.innerHTML = '<p class="vacio">Todavía no tienes listas. Toca "+" para crear la primera.</p>';
+        zonaListas.innerHTML =
+          '<div class="tarjeta tarjeta-vacia">' +
+          '<span class="circulo-vacio" aria-hidden="true">' + icono("shopping-cart", 26) + "</span>" +
+          '<p class="titulo-vacio">Todavía no tienes listas</p>' +
+          "<p>Toca <strong>+</strong> abajo a la derecha para crear la primera.</p></div>";
         return;
       }
       ids.sort(function (a, b) {
@@ -107,7 +113,8 @@ function montarVistaListas(contenedor, usuario) {
             '<div class="tarjeta fila-tarjeta">' +
             '<a href="lista.html?lista=' + encodeURIComponent(id) + '" data-abrir="' + esc(id) + '" ' +
             'class="fila-tarjeta-enlace">' +
-            "<strong>" + esc(info.nombre || "(sin nombre)") + "</strong>" +
+            '<span class="baldosa" aria-hidden="true">' + icono("shopping-cart", 22) + "</span>" +
+            '<span class="nombre-lista">' + esc(info.nombre || "(sin nombre)") + "</span>" +
             "</a>" +
             '<button type="button" class="btn-accion-icono" data-renombrar="' + esc(id) + '" ' +
             'aria-label="Renombrar lista" title="Renombrar lista">' +
@@ -179,7 +186,7 @@ function montarVistaListas(contenedor, usuario) {
   montarBotonAyuda(
     "<h3>Mis listas</h3>" +
       "<p>Aquí ves todas tus listas de compra compartidas. Toca el botón <strong>+</strong> " +
-      "para crear una nueva, toca el nombre de una lista para abrirla, o el ícono de guardar " +
+      "para crear una nueva, toca el nombre de una lista para abrirla, o el lápiz " +
       "junto a ella para renombrarla.</p>"
   );
 

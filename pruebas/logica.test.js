@@ -156,3 +156,14 @@ test("textoCantidad", () => {
   assert.equal(L.textoCantidad(0.333333, "kg"), "0.33 kg");
   assert.equal(L.textoCantidad(2, "l"), "2 l");
 });
+
+test("cada pasillo tiene un ícono que existe en js/iconos.js", () => {
+  const ctxIconos = vm.createContext({});
+  vm.runInContext(fs.readFileSync(path.join(raiz, "js/iconos.js"), "utf8"), ctxIconos);
+  const iconos = vm.runInContext("ICONOS_LUCIDE", ctxIconos);
+  const mapa = g("CATEGORIAS_ICONOS");
+  for (const id of g("CATEGORIAS_ORDEN_DEFECTO")) {
+    assert.ok(mapa[id], "sin ícono: " + id);
+    assert.ok(iconos[mapa[id]], "ícono inexistente en iconos.js: " + mapa[id]);
+  }
+});

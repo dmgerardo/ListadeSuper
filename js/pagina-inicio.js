@@ -8,6 +8,7 @@
   function mostrarBienvenida() {
     app.innerHTML =
       '<div class="pantalla-bienvenida">' +
+      '<span class="baldosa" aria-hidden="true">' + icono("shopping-cart", 32) + "</span>" +
       "<h1>ListadeCompras</h1>" +
       '<p class="texto-suave">Listas de compra compartidas, en tiempo real, con tu familia o tu equipo.</p>' +
       '<button type="button" class="btn-google" id="boton-google">' +

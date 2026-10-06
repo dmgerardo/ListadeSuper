@@ -6,7 +6,15 @@
 > de verdad técnica (esa es `AGENTS.md`), pero sigue teniendo el detalle completo de cada
 > fase y el modelo de datos.
 
-## Estado actual: Fase 2 (artículos) — CONSTRUIDA Y PROBADA EN LOCAL (2026-10-06)
+## Estado actual: Fase 2.1 (rediseño "Mercado fresco") — EN `main` (v11, 2026-10-06)
+
+Solo presentación sobre la Fase 2 (sin cambios de lógica, datos ni reglas). Ver `AGENTS.md`
+§3b (tokens, tipografía, íconos y colores por pasillo) y §3c (**lenguaje visual obligatorio
+para las fases siguientes**). Probado en local: contraste (76 parejas, `pruebas/contraste.js`),
+lógica 11/11, reglas 15/15, flujo completo con CSP real en 390/320/1280 px × claro/oscuro con
+las fuentes reales. **Falta que el usuario lo vea en el sitio real** (iPhone y escritorio).
+
+## Estado anterior: Fase 2 (artículos) — CONSTRUIDA Y PROBADA EN LOCAL (2026-10-06)
 
 - Sitio: **https://pilo-compras.web.app** (proyecto Firebase `pilo-compras`, RTDB `us-central1`).
   Deploy automático en cada push a `main` (Hosting + reglas).
@@ -60,8 +68,9 @@ estático local — la CSP y las cabeceras de caché solo existen en el deploy r
 - **Login en iPhone real** (Safari y PWA instalada): no probado.
 - **SDK de Firebase**: la app usa `10.14.1`; la más reciente es `12.19.0` (npm, 2026-10-06).
   Actualizar es un cambio aparte, con pruebas.
-- **Contraste de `.btn`** en modo claro: 3.42:1 (texto `#fff8ee` sobre `#c67139`), por debajo
-  de 4.5:1. Preguntar al usuario si se oscurece el fondo del botón.
+- **Mis listas como en la maqueta (B3)**: tarjeta héroe de la lista más reciente con "N por
+  comprar", estimado y avatares + cuadrícula de 2 columnas. En la 2.1 solo se aplicaron tokens,
+  encabezado ("Hola, …") y tarjetas con baldosa. Necesita leer los artículos de cada lista.
 - Reordenar pasillos por lista (`info.ordenCategorias` ya existe, falta la pantalla).
 - Íconos de `icons/*.png`: placeholder.
 
@@ -84,7 +93,7 @@ estático local — la CSP y las cabeceras de caché solo existen en el deploy r
 
 ## Siguiente paso sugerido
 
-1. Que el usuario pruebe la Fase 2 en el sitio real y reporte.
+1. Que el usuario pruebe la Fase 2 + 2.1 en el sitio real y reporte.
 2. Fase 3 (ver `PROYECTO_INICIAL.md` §10): favoritos/frecuentes + autocompletado + plantillas.
    Ojo: con el modelo de uso del usuario (la lista ES su catálogo fijo) puede que "favoritos"
    y "plantillas" pesen menos de lo que pensaba el documento original — **preguntarle antes

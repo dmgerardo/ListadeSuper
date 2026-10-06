@@ -24,8 +24,9 @@ async function nuevoContexto(browser, opciones) {
   const errores = [];
   ctx.on("weberror", (e) => errores.push("error de página: " + e.error().message));
   ctx.on("console", (m) => {
-    // Las fuentes de Google se bloquean a propósito (sin red): ese ERR_FAILED no cuenta.
-    if (m.type() === "error" && !/ERR_FAILED|fonts\.g/.test(m.text())) errores.push("consola: " + m.text());
+    // Sin excepciones: las fuentes de Google se cargan de verdad, así que una violación de
+    // CSP al pedirlas (o cualquier recurso que falle) cuenta como error.
+    if (m.type() === "error") errores.push("consola: " + m.text());
   });
   await ctx.addInitScript((modo) => {
     window.__USUARIO_MOCK = { uid: "u1", displayName: "Prueba", email: "prueba@ejemplo.com", photoURL: "" };
@@ -35,7 +36,6 @@ async function nuevoContexto(browser, opciones) {
   }, opciones.modo || "claro");
   await ctx.route(/gstatic\.com\/firebasejs\//, (r) => r.fulfill({ contentType: "text/javascript", body: "" }));
   await ctx.route(/gstatic\.com\/firebasejs\/.*app-compat/, (r) => r.fulfill({ contentType: "text/javascript", body: mock }));
-  await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   return { ctx, errores };
 }
 
@@ -57,6 +57,7 @@ async function flujo(browser, ancho, modo) {
   await page.fill("#campo-nombre-lista", "Súper de la semana");
   await page.click('[data-form-lista] button[type="submit"]');
   await pausa(page, 300);
+  await page.screenshot({ path: path.join(CAPTURAS, "mis-listas-" + ancho + "-" + modo + ".png") });
   const enlace = await page.getAttribute(".fila-tarjeta-enlace", "href");
   await page.goto(BASE + "/" + enlace);
   await pausa(page, 400);
@@ -65,14 +66,14 @@ async function flujo(browser, ancho, modo) {
   paso("lista creada y abierta: " + listaId);
 
   // 2. Lista vacía → importar la nota real del usuario.
-  assert.ok(await page.isVisible(".vacio [data-accion=importar]"), "estado vacío con botón Importar");
-  await page.click(".vacio [data-accion=importar]");
+  assert.ok(await page.isVisible(".tarjeta-vacia [data-accion=importar]"), "estado vacío con botón Importar");
+  await page.click(".tarjeta-vacia [data-accion=importar]");
   await page.fill("#texto-importar", nota);
   await pausa(page);
   const previa = await page.textContent("[data-vista-previa]");
   assert.match(previa, /171 artículos nuevos/);
   assert.match(previa, /Lista del súper/); // renglón ignorado visible en la vista previa
-  if (ancho < 600) await page.screenshot({ path: path.join(CAPTURAS, "importar-previa-" + modo + ".png") });
+  await page.screenshot({ path: path.join(CAPTURAS, "importar-previa-" + ancho + "-" + modo + ".png") });
   const escriturasAntes = await page.evaluate(() => window.__mockBD.escrituras.length);
   await page.click("[data-importar]");
   await pausa(page, 400);
@@ -86,7 +87,7 @@ async function flujo(browser, ancho, modo) {
   // Tras importar se pasa a "Toda la lista": 171 filas en 14 pasillos, en el orden de la nota.
   assert.equal(await page.getAttribute('[data-vista="todo"]', "aria-selected"), "true");
   assert.equal((await nombresVisibles(page)).length, 171);
-  const pasillos = await page.$$eval(".titulo-pasillo", (h) => h.map((x) => x.firstChild.textContent.trim()));
+  const pasillos = await page.$$eval(".titulo-pasillo", (h) => h.map((x) => [...x.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim()));
   assert.deepEqual(pasillos.slice(0, 4), ["Especiales", "Frutas de temporada", "Frutas", "Verduras"]);
   assert.equal(pasillos.length, 14);
   const frutas = await page.$$eval(".grupo-pasillo:nth-child(3) .nombre-articulo", (n) => n.slice(0, 3).map((x) => x.textContent));
@@ -146,13 +147,26 @@ async function flujo(browser, ancho, modo) {
   await page.click('[aria-label="Editar tomate"]');
   await page.selectOption("#art-categoria", "verduras");
   await page.fill("#art-precio", "25,50");
-  if (ancho < 600) await page.screenshot({ path: path.join(CAPTURAS, "formulario-" + modo + ".png") });
+  await pausa(page, 350); // que termine la animación de entrada del modal
+  const toastEncima = await page.evaluate(() => {
+    const t = document.querySelector(".toast");
+    if (!t) return false;
+    const r = t.getBoundingClientRect();
+    const arriba = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return !!arriba && !!arriba.closest(".toast");
+  });
+  assert.equal(toastEncima, false, "un toast no debe quedar encima del formulario abierto");
+  await page.screenshot({ path: path.join(CAPTURAS, "formulario-" + ancho + "-" + modo + ".png") });
   await page.click('[data-form-articulo] button[type="submit"]');
   await pausa(page);
   assert.equal(await ultimoToast(page), "Guardado ✓");
   const tomate = Object.values(await leerBD(page, "listas/" + listaId + "/articulos")).find((a) => a.nombre === "tomate");
   assert.deepEqual([tomate.categoria, tomate.precio, tomate.cantidad, tomate.unidad], ["verduras", 25.5, 2, "kg"]);
-  assert.match(await page.textContent("[data-resumen]"), /4 por comprar · \$51\.00 estimado \(3 sin precio\)/);
+  // Tarjeta de resumen (datos de totalesLista): 4 por comprar de 172, $51.00, 3 sin precio.
+  assert.equal(await page.textContent("[data-resumen] .resumen-numero"), "4 de 172");
+  assert.equal(await page.textContent("[data-resumen] .resumen-monto"), "$51.00");
+  assert.equal(await page.textContent("[data-resumen] .resumen-nota"), "3 sin precio");
+  assert.equal(await page.getAttribute("[data-resumen]", "aria-live"), "polite");
   assert.deepEqual(await nombresVisibles(page), ["Plátanos", "Mangos", "tomate", "Leche Entera 2 Santa Clara"]);
   paso("edición: pasillo + precio con coma; total $51.00 (2 kg × $25.50)");
 
@@ -164,7 +178,7 @@ async function flujo(browser, ancho, modo) {
   await page.click(".toast:last-child button");
   await pausa(page);
   assert.ok((await nombresVisibles(page)).includes("Plátanos"), "Deshacer regresa el artículo");
-  if (ancho < 600) await page.screenshot({ path: path.join(CAPTURAS, "por-comprar-" + modo + ".png") });
+  await page.screenshot({ path: path.join(CAPTURAS, "por-comprar-" + ancho + "-" + modo + ".png") });
 
   // 9. Marcar todo (1 escritura) y Deshacer.
   const antesTodo = await page.evaluate(() => window.__mockBD.escrituras.length);
@@ -228,7 +242,40 @@ async function flujo(browser, ancho, modo) {
   await page.reload();
   await pausa(page, 500);
   assert.equal(await page.getAttribute('[data-vista="todo"]', "aria-selected"), "true");
-  if (ancho < 600) await page.screenshot({ path: path.join(CAPTURAS, "toda-la-lista-" + modo + ".png") });
+  await page.screenshot({ path: path.join(CAPTURAS, "toda-la-lista-" + ancho + "-" + modo + ".png") });
+
+  // 14b. Rediseño 2.1: índice de pasillos, encabezado con baldosa, marcado sin tachar,
+  // fuentes reales y etiqueta de la pestaña activa (solo desde 375 px).
+  const chips = await page.$$eval(".chip-pasillo", (c) => c.map((x) => [x.getAttribute("href"), x.querySelector(".chip-numero").textContent]));
+  assert.equal(chips.length, 14, "un chip por pasillo visible");
+  assert.deepEqual(chips.find((c) => c[0] === "#p-frutas"), ["#p-frutas", "2"], "chip de Frutas con sus 2 pendientes");
+  assert.equal(await page.$$eval(".grupo-pasillo .baldosa-pasillo svg", (b) => b.length), 14, "baldosa con ícono en cada pasillo");
+  await page.click('.chip-pasillo[href="#p-abarrotes"]');
+  await page.waitForTimeout(900); // scroll suave
+  const destino = await page.evaluate(() => {
+    const h = document.querySelector("#p-abarrotes .titulo-pasillo").getBoundingClientRect();
+    return { top: Math.round(h.top), visible: h.top >= 0 && h.bottom <= window.innerHeight };
+  });
+  assert.ok(destino.visible && destino.top < 80, "el chip lleva al pasillo y su título queda visible arriba: " + JSON.stringify(destino));
+  const marcadoEstilo = await page.$eval(".fila-articulo.marcado .nombre-articulo", (e) => {
+    const cs = getComputedStyle(e);
+    return { tachado: cs.textDecorationLine, color: cs.color };
+  });
+  assert.equal(marcadoEstilo.tachado, "none", "lo marcado NO va tachado");
+  const fuentes = await page.evaluate(async () => {
+    await document.fonts.ready;
+    return {
+      titulos: document.fonts.check('800 36px "Bricolage Grotesque"'),
+      texto: document.fonts.check('400 16px "Figtree"'),
+      h1: getComputedStyle(document.querySelector("h1")).fontFamily,
+    };
+  });
+  assert.ok(fuentes.titulos && fuentes.texto, "fuentes cargadas: " + JSON.stringify(fuentes));
+  assert.match(fuentes.h1, /Bricolage Grotesque/);
+  const etiquetaActiva = await page.$eval(".item-barra.activo .etiqueta-barra", (e) => getComputedStyle(e).display);
+  assert.equal(etiquetaActiva === "none", ancho < 375, "etiqueta de la pestaña activa visible solo desde 375 px");
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  await pausa(page, 600);
 
   // 15. Ningún control de la barra inferior tapa a otro (pasó con el "+" aparte a 390 px).
   const traslapes = await page.evaluate(() => {
@@ -250,7 +297,7 @@ async function flujo(browser, ancho, modo) {
   // 16. Sin scroll horizontal; ninguna fila tapada por la barra al final de la página.
   const desborde = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   assert.equal(desborde, false, "sin scroll horizontal");
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "instant" }));
   await pausa(page);
   const tapada = await page.evaluate(() => {
     const filas = document.querySelectorAll(".fila-articulo");
@@ -283,7 +330,7 @@ async function sinAcceso(browser) {
   const browser = await chromium.launch();
   let fallo = null;
   try {
-    for (const [ancho, modo] of [[390, "claro"], [390, "oscuro"], [320, "claro"], [1280, "claro"]]) {
+    for (const [ancho, modo] of [[390, "claro"], [390, "oscuro"], [320, "claro"], [320, "oscuro"], [1280, "claro"], [1280, "oscuro"]]) {
       console.log("Flujo " + ancho + " px, modo " + modo);
       await flujo(browser, ancho, modo);
     }

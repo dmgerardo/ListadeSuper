@@ -54,12 +54,12 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
 
   contenedor.innerHTML =
     '<div class="contenedor">' +
-    '<a href="index.html" class="btn-texto enlace-con-icono">' + icono("chevron-left", 18) + "<span>Mis listas</span></a>" +
+    '<a href="index.html" class="btn-texto enlace-con-icono enlace-regreso">' + icono("chevron-left", 18) + "<span>Mis listas</span></a>" +
     '<h1 data-nombre-lista>Cargando…</h1>' +
     '<p class="texto-suave oculto" data-sin-acceso>No existe, o tu cuenta no es miembro de ella. ' +
     "Si te la compartieron, pide una invitación nueva.</p>" +
     '<div data-cuerpo class="oculto">' +
-    '<p class="resumen-lista" data-resumen aria-live="polite"></p>' +
+    '<section class="tarjeta-resumen" data-resumen aria-live="polite" aria-label="Resumen de la lista"></section>' +
     '<div class="selector-vista" role="tablist" aria-label="Qué artículos ver">' +
     '<button type="button" role="tab" data-vista="pendientes">Por comprar <span class="contador" data-contador-pendientes></span></button>' +
     '<button type="button" role="tab" data-vista="todo">Toda la lista</button>' +
@@ -67,9 +67,10 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     '<form class="campo-rapido" data-form-rapido autocomplete="off">' +
     icono("search", 20) +
     '<input type="text" data-campo-rapido maxlength="130" enterkeyhint="done" ' +
-    'placeholder="Buscar o agregar (ej. 2 kg tomate)" aria-label="Buscar o agregar artículo">' +
-    '<button type="submit" class="btn-accion-icono" aria-label="Agregar artículo" title="Agregar artículo">' + icono("plus", 22) + "</button>" +
+    'placeholder="Busca o agrega: 2 kg tomate" aria-label="Buscar o agregar artículo">' +
+    '<button type="submit" class="btn-agregar-rapido" aria-label="Agregar artículo" title="Agregar artículo">' + icono("plus", 22) + "</button>" +
     "</form>" +
+    '<nav class="indice-pasillos" data-indice aria-label="Ir a un pasillo"></nav>' +
     '<div class="acciones-lista" data-acciones></div>' +
     '<div data-articulos></div>' +
     "</div>" +
@@ -79,6 +80,8 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
   var cuerpo = contenedor.querySelector("[data-cuerpo]");
   var avisoSinAcceso = contenedor.querySelector("[data-sin-acceso]");
   var resumenEl = contenedor.querySelector("[data-resumen]");
+  var indiceEl = contenedor.querySelector("[data-indice]");
+  var ultimoResumen = ""; // aria-live: solo se reescribe si cambió, para no repetir el anuncio
   var contadorEl = contenedor.querySelector("[data-contador-pendientes]");
   var zonaAcciones = contenedor.querySelector("[data-acciones]");
   var zonaArticulos = contenedor.querySelector("[data-articulos]");
@@ -92,11 +95,12 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     var detalle = [];
     var cantidad = textoCantidad(a.cantidad, a.unidad);
     if (cantidad) detalle.push(esc(cantidad));
+    if (a.notas) detalle.push('<span class="notas-articulo">' + esc(a.notas) + "</span>");
+    var precio = "";
     if (typeof a.precio === "number") {
       var n = typeof a.cantidad === "number" ? a.cantidad : 1;
-      detalle.push(esc(formatoMoneda(n * a.precio, info.moneda)));
+      precio = '<span class="precio-articulo">' + esc(formatoMoneda(n * a.precio, info.moneda)) + "</span>";
     }
-    if (a.notas) detalle.push('<span class="notas-articulo">' + esc(a.notas) + "</span>");
     var etiquetaCasilla = a.comprado
       ? "Desmarcar " + a.nombre + " (poner por comprar)"
       : "Marcar " + a.nombre + " como comprado";
@@ -107,8 +111,11 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       '<span class="casilla-circulo">' + icono("check", 18) + "</span>" +
       "</button>" +
       '<button type="button" class="cuerpo-articulo" data-editar="' + esc(a.id) + '" aria-label="Editar ' + esc(a.nombre) + '">' +
+      '<span class="textos-articulo">' +
       '<span class="nombre-articulo">' + esc(a.nombre) + "</span>" +
       (detalle.length ? '<span class="detalle-articulo">' + detalle.join(" · ") + "</span>" : "") +
+      "</span>" +
+      precio +
       "</button>" +
       "</li>"
     );
@@ -118,13 +125,51 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     return grupos
       .map(function (g) {
         return (
-          '<section class="grupo-pasillo">' +
-          '<h2 class="titulo-pasillo">' + esc(g.nombre) + ' <span class="contador">' + g.articulos.length + "</span></h2>" +
+          '<section class="grupo-pasillo" id="p-' + esc(g.categoria) + '">' +
+          '<h2 class="titulo-pasillo">' +
+          '<span class="baldosa-pasillo pasillo-' + esc(g.categoria) + '" aria-hidden="true">' + icono(CATEGORIAS_ICONOS[g.categoria], 18) + "</span>" +
+          esc(g.nombre) + ' <span class="contador">' + g.articulos.length + "</span></h2>" +
           '<ul class="lista-articulos">' + g.articulos.map(filaArticulo).join("") + "</ul>" +
           "</section>"
         );
       })
       .join("");
+  }
+
+  // Chips del índice: uno por pasillo visible, con el número de PENDIENTES de ese pasillo
+  // (en "Toda la lista" también, porque es lo que importa al planear).
+  function pintarIndice(grupos) {
+    indiceEl.innerHTML = grupos
+      .map(function (g) {
+        var pendientes = g.articulos.filter(function (a) { return !a.comprado; }).length;
+        return (
+          '<a class="chip-pasillo pasillo-' + esc(g.categoria) + '" href="#p-' + esc(g.categoria) + '" ' +
+          'aria-label="' + esc(g.nombre + ": " + pendientes + " por comprar") + '">' +
+          '<span class="chip-numero" aria-hidden="true">' + pendientes + "</span>" +
+          "<span>" + esc(g.nombre) + "</span></a>"
+        );
+      })
+      .join("");
+  }
+
+  function pintarResumen(t) {
+    var nota = t.pendientes === 0 ? "nada pendiente"
+      : t.sinPrecio === 0 ? "todos con precio"
+      : t.sinPrecio === 1 ? "1 sin precio" : t.sinPrecio + " sin precio";
+    var html =
+      '<div class="resumen-bloque">' +
+      '<span class="resumen-etiqueta">Por comprar</span>' +
+      '<span class="resumen-numero">' + t.pendientes + ' <span class="resumen-de">de ' + (t.pendientes + t.marcados) + "</span></span>" +
+      "</div>" +
+      '<div class="resumen-bloque resumen-derecha">' +
+      '<span class="resumen-etiqueta">Estimado</span>' +
+      '<span class="resumen-monto">' + esc(formatoMoneda(t.total, info.moneda)) + "</span>" +
+      '<span class="resumen-nota">' + esc(nota) + "</span>" +
+      "</div>";
+    if (html !== ultimoResumen) {
+      resumenEl.innerHTML = html;
+      ultimoResumen = html;
+    }
   }
 
   function pintar() {
@@ -141,12 +186,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
 
       var t = totalesLista(articulos);
       contadorEl.textContent = t.pendientes ? String(t.pendientes) : "";
-      var partes = [t.pendientes === 1 ? "1 por comprar" : t.pendientes + " por comprar"];
-      if (t.total > 0) {
-        partes.push(formatoMoneda(t.total, info.moneda) + " estimado" + (t.sinPrecio ? " (" + t.sinPrecio + " sin precio)" : ""));
-      }
-      partes.push(t.pendientes + t.marcados + " en total");
-      resumenEl.textContent = partes.join(" · ");
+      pintarResumen(t);
 
       pestanasVista.forEach(function (b) {
         var activa = b.dataset.vista === vista;
@@ -169,9 +209,12 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
 
       var total = t.pendientes + t.marcados;
       if (total === 0) {
+        indiceEl.innerHTML = "";
         zonaArticulos.innerHTML =
-          '<div class="vacio"><p>Esta lista está vacía. Escribe arriba para agregar un artículo, ' +
-          "o pega tu lista desde una nota.</p>" +
+          '<div class="tarjeta tarjeta-vacia">' +
+          '<span class="circulo-vacio" aria-hidden="true">' + icono("clipboard-list", 26) + "</span>" +
+          '<p class="titulo-vacio">Esta lista está vacía</p>' +
+          "<p>Escribe arriba para agregar un artículo, o pega tu lista desde una nota.</p>" +
           '<button type="button" class="btn" data-accion="importar">' + icono("clipboard-list", 18) + "<span>Importar desde una nota</span></button></div>";
         return;
       }
@@ -180,6 +223,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         // Al buscar se ve TODO lo que coincide (marcado o no), para poder desmarcar algo que
         // ya existe en vez de agregarlo duplicado.
         var coincidencias = agruparArticulos(articulos, info.ordenCategorias, { filtro: filtro });
+        indiceEl.innerHTML = ""; // al buscar, el índice estorba: se ve solo lo que coincide
         var exacto = buscarPorNombre(articulos, interpretarTextoRapido(filtro).nombre);
         var sugerencia = exacto
           ? ""
@@ -191,9 +235,13 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       }
 
       var grupos = agruparArticulos(articulos, info.ordenCategorias, { soloPendientes: vista === "pendientes" });
+      pintarIndice(grupos);
       if (vista === "pendientes" && grupos.length === 0) {
         zonaArticulos.innerHTML =
-          '<div class="vacio"><p>Nada por comprar. En <strong>Toda la lista</strong> desmarca lo que necesites.</p>' +
+          '<div class="tarjeta tarjeta-vacia">' +
+          '<span class="circulo-vacio" aria-hidden="true">' + icono("check", 28) + "</span>" +
+          '<p class="titulo-vacio">Nada por comprar</p>' +
+          "<p>En <strong>Toda la lista</strong> desmarca lo que necesites.</p>" +
           '<button type="button" class="btn btn-secundario" data-ir-vista="todo">Ver toda la lista</button></div>';
         return;
       }

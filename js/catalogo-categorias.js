@@ -38,6 +38,26 @@ const CATEGORIAS_NOMBRES = {
   farmacia: "Farmacia"
 };
 
+// Ícono de Lucide (js/iconos.js) de cada pasillo, para su baldosa y su chip en el índice.
+// condimentos_aceites → cooking-pot y personal → toothbrush los eligió el agente en la
+// Fase 2.1 (el usuario propuso los demás); todos verificados en lucide-static.
+const CATEGORIAS_ICONOS = {
+  especiales: "sparkles",
+  frutas_temporada: "cherry",
+  frutas: "apple",
+  verduras: "carrot",
+  carniceria: "beef",
+  salchichoneria: "ham",
+  refris: "refrigerator",
+  condimentos_aceites: "cooking-pot",
+  abarrotes: "package",
+  botanas_semillas: "popcorn",
+  panaderia: "croissant",
+  limpieza: "spray-can",
+  personal: "toothbrush",
+  farmacia: "pill"
+};
+
 // Otros nombres con los que puede venir un encabezado al importar una nota (ya
 // normalizados: minúsculas, sin acentos). El nombre propio de cada categoría se reconoce
 // solo, no hace falta repetirlo aquí.

@@ -9,8 +9,8 @@
 PWA de listas de compra compartidas (repo `dmgerardo/ListadeSuper`, app visible como
 **"ListadeCompras"**). Sin build ni framework: HTML + CSS + JS vanilla cargado con
 `<script>` clásicos, un solo scope global. Firebase (Authentication Google + Realtime
-Database + Hosting) vía SDK compat por CDN de gstatic, versión `10.14.1` (no verificada
-contra la última versión disponible en esta sesión — revisar si se actualiza).
+Database + Hosting) vía SDK compat por CDN de gstatic, versión `10.14.1` (la más reciente
+en npm es `12.19.0`, ver §7).
 
 ## 2. Invariantes (no romper sin discutirlo)
 
@@ -54,7 +54,15 @@ contra la última versión disponible en esta sesión — revisar si se actualiz
   pantalla o de sesión. No crear FABs ni barras fijas nuevas fuera de ella. En `lista.html`
   NO hay "+" aparte (4 pestañas + 3 controles no caben con él en 375 px): agregar es el "+"
   del campo rápido (vacío = formulario completo).
-- **Un solo toast a la vez** (`mostrarToast` reemplaza el anterior).
+- **Un solo toast a la vez** (`mostrarToast` reemplaza el anterior). Los toasts van
+  **debajo** de los modales (z-index 90 < 100) y encima de la barra (40).
+- **Colores solo por tokens**: todo hex vive en `:root` o `:root[data-modo="oscuro"]` de
+  `css/estilos.css`; los pasillos también (`--pasillo-<clave>-tinte/-tinta`, expuestos por la
+  clase `.pasillo-<clave>` como `--tinte`/`--tinta`). **Toda pareja texto/fondo nueva se agrega
+  a `pruebas/contraste.js` y se corre** (falla si algo baja de 4.5:1 texto / 3:1 íconos, o si
+  aparece un hex fuera de los tokens). Resultados en `pruebas/contraste-resultados.md`.
+- **Íconos solo de Lucide oficial** (`lucide-static` de npm), copiados a `js/iconos.js`, nunca
+  escritos a mano ni por CDN.
 
 ## 3. Estructura de archivos
 
@@ -66,9 +74,9 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `js/firebase-config.js` | Config pública + `initializeApp` |
 | `js/db.js` | `refNodo`, `escuchar`, `obtenerConCache`, `agregar`, `actualizar`, `eliminar`, `actualizarMultiple`, `programarRender`, caché en `localStorage` |
 | `js/auth.js` | Login/logout Google, `requerirSesion()`, perfil en `usuarios/{uid}` |
-| `js/iconos.js` | `ICONOS_LUCIDE`, `icono()`, `iconoTexto()` |
+| `js/iconos.js` | `ICONOS_LUCIDE` (SVG oficiales de `lucide-static` 1.52.0, ver cabecera), `icono()`, `iconoTexto()` |
 | `js/render-utils.js` | `esc`, `urlSegura`, `formatoMoneda`, `hoyLocalISO`, `abrirModal`, `confirmarCierreConCambios`, `mostrarToast` y la barra inferior flotante: `barraInferior`, `ranuraBarra`, `vaciarRanura`, `montarPestanas`, `montarAccionPrincipal`, `montarBotonAyuda`, `montarMenuCuenta` |
-| `js/catalogo-categorias.js` | Las 14 categorías/pasillos del usuario (confirmadas en Fase 2, orden de su nota de iPhone; "Especiales" es el cajón, no hay "Otros"), alias para importar y las 11 unidades |
+| `js/catalogo-categorias.js` | Las 14 categorías/pasillos del usuario (confirmadas en Fase 2, orden de su nota de iPhone; "Especiales" es el cajón, no hay "Otros"), su ícono (`CATEGORIAS_ICONOS`), alias para importar y las 11 unidades |
 | `js/logica-articulos.js` | Lógica pura, probada en Node: `normalizarNombre`, `interpretarTextoRapido` ("2 kg tomate"), `ordenCategoriasEfectivo`, `agruparArticulos`, `totalesLista`, `parsearNotaImportada`, `separarRepetidos`, `buscarPorNombre`, `textoCantidad` |
 | `js/vista-articulos.js` | Pantalla de una lista: vistas "Por comprar"/"Toda la lista", campo rápido (busca + agrega), formulario agregar/editar/eliminar, marcar todo, importar nota, totales, Deshacer |
 | `js/vista-listas.js` | Pantalla "Mis listas": crear, abrir, renombrar |
@@ -77,10 +85,78 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `js/version.js` | Estado de conexión + versión en la barra inferior (tocar = forzar actualización) y registro del Service Worker |
 | `index.html` | Login + "Mis listas" |
 | `lista.html` | Una lista con sus artículos (Fase 2) |
-| `pruebas/` | Pruebas: lógica en Node, reglas con el emulador, flujo con Playwright — ver `pruebas/README.md` |
+| `pruebas/` | Pruebas: lógica en Node, reglas con el emulador, flujo con Playwright, contraste de tokens (`contraste.js`) — ver `pruebas/README.md` |
+| `scripts/generar-iconos.py` | Genera `icons/*.png` (placeholder) con los colores de los tokens. Requiere Pillow |
 | `historial.html` | Historial de versiones para usuarios |
 | `database.rules.json` | Reglas. Probadas con el Emulador (`pruebas/reglas`, 15 casos): Fase 1 (crear lista, no-miembro, renombrar, perfil) y artículos (validación por campo, multi-ruta). Invitaciones/miembros (Fase 4) aún sin casos |
 | `sw.js` | App shell cacheado por versión |
+
+## 3b. Sistema visual "Mercado fresco" (Fase 2.1)
+
+- **Tokens** (`css/estilos.css`, modo claro → oscuro): fondo `#F3F5F0`→`#121815`, superficie
+  `#FFFFFF`→`#1B231E`, texto `#15211A`→`#E8EFE9`, texto suave `#56655B`→`#9DB0A3`, primario
+  `#17803D`→`#3DBE6E`, primario oscuro (acciones de texto, pestaña activa) `#0F5C2B`→`#7FD9A0`,
+  texto sobre primario `#FFFFFF`→`#15211A`, tinte primario `#E4F2E7`→`#1D3B29`, borde
+  `#E3E8E1`→`#2A352E`, riel del selector `#E8ECE6`→`#222C26`, peligro `#B42318`→`#F1907C`,
+  toast `#15211A`/blanco/acción `#86E0A6` → `#E8EFE9`/`#121815`/acción `#0F5C2B`. Radios 20 px
+  (tarjetas), 14 px (chico), 12 px (segmento). Sombra de tarjeta `0 1px 2px` al 6 %.
+- **Tipografía**: títulos Bricolage Grotesque 700/800, `letter-spacing: -0.02em`; texto Figtree
+  400/500/600/700. h1 36 px. Ambas de Google Fonts (permitidas por la CSP actual).
+- **Pasillos**: un par tinte/tinta por pasillo, ≥ 4.5:1 en ambos modos (la tinta también pinta
+  el número de pendientes del índice, que es texto). Íconos (`CATEGORIAS_ICONOS`):
+  especiales `sparkles`, frutas_temporada `cherry`, frutas `apple`, verduras `carrot`,
+  carniceria `beef`, salchichoneria `ham`, refris `refrigerator`, condimentos_aceites
+  `cooking-pot`, abarrotes `package`, botanas_semillas `popcorn`, panaderia `croissant`,
+  limpieza `spray-can`, personal `toothbrush`, farmacia `pill`.
+- **Marcado** se pinta en texto suave **sin tachar** ("ya lo tengo", no "borrado").
+- **Barra inferior**: la pestaña activa lleva tinte primario y su etiqueta; en pantallas
+  < 375 px la etiqueta se oculta (con 7 controles no cabe en un iPhone SE), queda el ícono con
+  su `aria-label`.
+
+## 3c. Lenguaje visual para las fases siguientes (obligatorio)
+
+Acordado con el usuario (2026-10-06) a partir de su maqueta "Mercado fresco". Toda pantalla
+nueva lo sigue; si algo no encaja, se pregunta antes de inventar un patrón.
+
+**B0.** Antes de la Fase 3, **preguntar al usuario qué le falta realmente** (favoritos o
+plantillas): su lista ya funciona como catálogo fijo.
+
+**B1. Patrones comunes**
+- Encabezado: enlace de regreso arriba a la izquierda (chevron + texto, `.enlace-regreso`),
+  título de 34–38 px en la fuente de títulos y subtítulo de una línea en texto suave
+  (`.subtitulo`).
+- Tarjetas blancas (`.tarjeta`) de radio 20–22 px. **Una sola "tarjeta héroe" por pantalla**
+  (fondo primario o `--color-texto`) para lo más importante (ej. `.tarjeta-resumen`).
+- Baldosas de ícono (`.baldosa`) de 44–48 px, radio 14–16 px, con colores de pasillo
+  (`.pasillo-<clave>`) o tinte primario.
+- Botones: primario relleno (`.btn`, texto sobre primario); secundario con borde de 1.5 px y
+  fondo blanco (`.btn-secundario`); acciones de texto en primario oscuro (`.btn-texto`). Los de
+  solo ícono llevan `aria-label` y `title`.
+- Todo borrado o acción masiva lleva toast con Deshacer (`mostrarToast(…, { accion })`).
+- Estados vacíos en `.tarjeta.tarjeta-vacia` con ícono en `.circulo-vacio`.
+
+**B2. Fase 3, si el usuario la confirma**
+- Favoritos: cuadrícula de 2 columnas de botones-tarjeta (baldosa con inicial o ícono del
+  pasillo, nombre, "última cantidad · precio"). Al tocarla se pone por comprar y queda con
+  borde primario y palomita. Filtros en píldoras: Todos / Favoritos / Frecuentes.
+- Plantillas: la aplicada más reciente como tarjeta héroe oscura con chips de sus artículos y
+  dos acciones ("Aplicar otra vez", "Quitar los de esta"). Las demás en tarjetas blancas con
+  baldosa, "N artículos · aprox. $X" y botón "Aplicar". Nota fija: si el artículo ya existe se
+  suma o se pone por comprar, sin duplicar.
+
+**B3. Mis listas (`index.html`)** — pendiente de construir (en la 2.1 solo se aplicaron
+tokens, encabezado y tarjetas con baldosa): la lista más reciente como tarjeta héroe primaria
+(ícono, nombre, "N por comprar", avatares de miembros, estimado, "Abrir"); las demás en
+cuadrícula de 2 columnas con baldosa de color, nombre y pendientes. "Nueva lista" abajo a la
+derecha (oscuro, 56 px) junto a la pastilla "En línea · vN". Ojo: "N por comprar" y el
+estimado por lista requieren escuchar los artículos de cada lista (más lecturas).
+
+**B4. Fase 4 (Miembros e invitaciones)** — tarjeta de tinte primario "Invita a alguien" ("La
+liga vence en 7 días", campo de solo lectura con la liga + botón copiar, botón primario
+"Compartir invitación" con `navigator.share`). Debajo, miembros en una tarjeta: avatar o foto
+de 44 px, nombre (con "(tú)"), rol como píldora ("Dueño" en tinte primario) y quitar
+(`trash-2`) solo visible para el dueño. **Antes de la UI: escribir los casos de reglas de
+invitaciones/miembros en `pruebas/reglas`** (hoy no tienen).
 
 ## 4. Autenticación
 
@@ -130,6 +206,11 @@ confirmado — se usará en Fase 4).
   de devolver la respuesta. Verificado con Playwright + SW real, simulando tres deploys.
 - **Errores `.js.map` de gstatic bloqueados por `connect-src`**: los pide DevTools (source
   maps) solo con la consola abierta; la app no los usa. No abrir la CSP por eso.
+- **Un toast de una acción anterior tapaba el formulario recién abierto** (z-index 200 del
+  toast contra 100 del modal; visto en capturas de la Fase 2.1 cubriendo el campo "Notas").
+  Ahora los toasts van en z-index 90. La prueba `flujo-compra.js` lo verifica.
+- **`scroll-behavior: smooth` en `html` hace asíncrono cualquier `scrollTo`**: en pruebas,
+  medir después de un scroll requiere `behavior: "instant"` o esperar.
 - **`Event.currentTarget` es `null` fuera del despacho síncrono del evento.** Guardarlo en
   una variable local antes de usarlo dentro de un `.then()`/`.catch()` asíncrono (pasó en
   el botón de login: `ev.currentTarget.disabled = false` dentro del `.catch()` tiraba
@@ -158,8 +239,7 @@ confirmado — se usará en Fase 4).
 - Las pruebas de `pruebas/e2e` usan Firebase simulado: no cubren login real, latencia ni
   modo sin conexión. La sesión en la nube **no puede abrir `pilo-compras.web.app`** (la política
   de red del entorno lo bloquea): lo desplegado lo verifica el usuario.
-- Contraste: el texto de `.btn` (`--color-texto-sobre-primario` sobre `--color-primario`, modo
-  claro) da **3.42:1**, menos del 4.5:1 de WCAG para texto normal (viene de la Fase 0). Para
-  íconos (≥ 3:1) sí cumple. Pendiente decidir con el usuario (oscurecer el fondo del botón).
-- Los íconos de `icons/*.png` son un placeholder generado por script (carrito simple sobre
-  fondo `--color-primario`), no un diseño final.
+- Los íconos de `icons/*.png` siguen siendo un placeholder (carrito simple sobre
+  `--color-primario`, `scripts/generar-iconos.py`), no un diseño final.
+- Bricolage Grotesque/Figtree vienen de Google Fonts: sin red la primera vez, se ve la
+  fuente del sistema (no se cachean en el SW porque son de otro origen).
