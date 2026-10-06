@@ -2,7 +2,7 @@
 // ignoreSearch, para no duplicar entradas por ?v=N); CSS/JS = caché primero, pero SOLO
 // dentro del caché de ESTA versión (así cada vN sirve exactamente sus propios archivos).
 // IMPORTANTE: cada archivo .js/.css nuevo debe agregarse también aquí.
-const APP_VERSION = "7";
+const APP_VERSION = "8";
 const NOMBRE_CACHE = "app-shell-v" + APP_VERSION;
 
 const ARCHIVOS_APP_SHELL = [
@@ -31,7 +31,13 @@ const ARCHIVOS_APP_SHELL = [
 self.addEventListener("install", function (ev) {
   ev.waitUntil(
     caches.open(NOMBRE_CACHE).then(function (cache) {
-      return cache.addAll(ARCHIVOS_APP_SHELL);
+      // cache: "reload" salta la caché HTTP del navegador: sin esto, addAll() puede guardar
+      // en el caché de la versión nueva una copia vieja (Firebase sirve JS/CSS con max-age).
+      return cache.addAll(
+        ARCHIVOS_APP_SHELL.map(function (url) {
+          return new Request(url, { cache: "reload" });
+        })
+      );
     })
   );
   self.skipWaiting();
@@ -66,9 +72,14 @@ self.addEventListener("fetch", function (ev) {
     ev.respondWith(
       fetch(req)
         .then(function (respuesta) {
-          caches.open(NOMBRE_CACHE).then(function (cache) {
-            cache.put(req, respuesta.clone());
-          });
+          // Clonar YA, antes de devolverla: si se clona dentro del .then() asíncrono, la
+          // página ya consumió el cuerpo y clone() truena ("body is already used").
+          if (respuesta.ok) {
+            var copia = respuesta.clone();
+            caches.open(NOMBRE_CACHE).then(function (cache) {
+              cache.put(req, copia);
+            });
+          }
           return respuesta;
         })
         .catch(function () {
@@ -78,12 +89,20 @@ self.addEventListener("fetch", function (ev) {
     return;
   }
 
+  // Un ?v=N de OTRA versión (p.ej. el HTML nuevo pidiendo ?v=7 mientras este SW todavía es
+  // el v6) va directo a la red: con ignoreSearch se serviría el archivo viejo de este caché.
+  var versionPedida = url.searchParams.get("v");
+  if (versionPedida && versionPedida !== APP_VERSION) {
+    ev.respondWith(fetch(req));
+    return;
+  }
+
   ev.respondWith(
     caches.open(NOMBRE_CACHE).then(function (cache) {
       return cache.match(req, { ignoreSearch: true }).then(function (enCache) {
         if (enCache) return enCache;
         return fetch(req).then(function (respuesta) {
-          cache.put(req, respuesta.clone());
+          if (respuesta.ok) cache.put(req, respuesta.clone());
           return respuesta;
         });
       });

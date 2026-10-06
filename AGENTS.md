@@ -102,6 +102,20 @@ confirmado — se usará en Fase 4).
   justo después de corregir el bug de arriba: la pestaña mostraba otra vez el error de CSP
   del script inline ya eliminado, porque sirvió una copia cacheada de `/`. Agregada una
   regla de headers explícita para `"source": "/"` además de `**/*.@(html)`.
+- **El Service Worker servía JS/CSS de la versión anterior** (visto en producción con la
+  v7: Chrome ejecutaba el `render-utils.js` de la v6 aunque el HTML pedía `?v=7`, y la
+  consola mostraba un error de CSP de un `style=""` que ya no existía en el código). Dos
+  causas en `sw.js`: (1) el SW viejo sigue controlando la primera carga tras un deploy y su
+  `cache.match(req, { ignoreSearch: true })` ignoraba el `?v=N` nuevo; ahora un `?v=` de
+  otra versión va directo a la red; (2) `cache.addAll()` en `install` podía llenar el caché
+  nuevo con copias viejas de la caché HTTP (Firebase sirve JS/CSS con `max-age`); ahora usa
+  `cache: "reload"`. La corrección solo aplica a partir del SW siguiente: la primera carga
+  después de un deploy cuyo SW anterior tenía el bug todavía puede salir obsoleta (una
+  recarga o tocar la versión lo arregla). También se corrigió `respuesta.clone()` llamado
+  dentro de un `.then()` asíncrono ("Response body is already used"): hay que clonar antes
+  de devolver la respuesta. Verificado con Playwright + SW real, simulando tres deploys.
+- **Errores `.js.map` de gstatic bloqueados por `connect-src`**: los pide DevTools (source
+  maps) solo con la consola abierta; la app no los usa. No abrir la CSP por eso.
 - **`Event.currentTarget` es `null` fuera del despacho síncrono del evento.** Guardarlo en
   una variable local antes de usarlo dentro de un `.then()`/`.catch()` asíncrono (pasó en
   el botón de login: `ev.currentTarget.disabled = false` dentro del `.catch()` tiraba
