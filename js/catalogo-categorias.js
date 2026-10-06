@@ -1,36 +1,62 @@
-// Categorías/pasillos y unidades por defecto para listas nuevas. Pendiente confirmar con
-// el usuario en la Fase 2 (ver PROXIMA_SESION.md); por ahora es un orden razonable de
-// supermercado en México.
+// Categorías/pasillos y unidades por defecto para listas nuevas. Confirmadas con el usuario
+// en la Fase 2 (2026-10-06): son las secciones de su lista de Notas del iPhone, en el mismo
+// orden. "Especiales" (compras de única ocasión) hace de cajón para lo que no encaje: no hay
+// "Otros" aparte, por decisión del usuario.
+const CATEGORIA_DEFECTO = "especiales";
+
 const CATEGORIAS_ORDEN_DEFECTO = [
-  "frutas_verduras",
-  "panaderia",
-  "lacteos",
-  "carnes_pescados",
+  "especiales",
+  "frutas_temporada",
+  "frutas",
+  "verduras",
+  "carniceria",
+  "salchichoneria",
+  "refris",
+  "condimentos_aceites",
   "abarrotes",
-  "enlatados_conservas",
-  "bebidas",
+  "botanas_semillas",
+  "panaderia",
   "limpieza",
-  "cuidado_personal",
-  "bebes",
-  "mascotas",
-  "farmacia",
-  "otros"
+  "personal",
+  "farmacia"
 ];
 
 const CATEGORIAS_NOMBRES = {
-  frutas_verduras: "Frutas y verduras",
-  panaderia: "Panadería",
-  lacteos: "Lácteos",
-  carnes_pescados: "Carnes y pescados",
+  especiales: "Especiales",
+  frutas_temporada: "Frutas de temporada",
+  frutas: "Frutas",
+  verduras: "Verduras",
+  carniceria: "Carnicería",
+  salchichoneria: "Salchichonería",
+  refris: "Refris",
+  condimentos_aceites: "Condimentos y aceites",
   abarrotes: "Abarrotes",
-  enlatados_conservas: "Enlatados y conservas",
-  bebidas: "Bebidas",
+  botanas_semillas: "Botanas y semillas",
+  panaderia: "Panadería",
   limpieza: "Limpieza",
-  cuidado_personal: "Cuidado personal",
-  bebes: "Bebés",
-  mascotas: "Mascotas",
-  farmacia: "Farmacia",
-  otros: "Otros"
+  personal: "Personal",
+  farmacia: "Farmacia"
 };
 
-const UNIDADES_DEFECTO = ["pieza", "kg", "g", "l", "ml", "paquete", "caja", "bolsa"];
+// Otros nombres con los que puede venir un encabezado al importar una nota (ya
+// normalizados: minúsculas, sin acentos). El nombre propio de cada categoría se reconoce
+// solo, no hace falta repetirlo aquí.
+const CATEGORIAS_ALIAS = {
+  "frutas y verduras": "verduras",
+  "carnes": "carniceria",
+  "carnes y pescados": "carniceria",
+  "salchichoneria y cremeria": "salchichoneria",
+  "cremeria": "salchichoneria",
+  "refrigerados": "refris",
+  "lacteos": "refris",
+  "condimentos": "condimentos_aceites",
+  "botanas": "botanas_semillas",
+  "semillas": "botanas_semillas",
+  "pan": "panaderia",
+  "cuidado personal": "personal",
+  "especial": "especiales",
+  "otros": "especiales"
+};
+
+// "pieza" es la unidad por defecto. lata/botella/docena: confirmadas con el usuario.
+const UNIDADES_DEFECTO = ["pieza", "kg", "g", "l", "ml", "paquete", "caja", "bolsa", "lata", "botella", "docena"];

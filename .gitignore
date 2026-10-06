@@ -13,3 +13,6 @@ node_modules/
 pilo-compras-*.json
 serviceAccountKey*.json
 *-firebase-adminsdk-*.json
+
+# Capturas de las pruebas de navegador
+pruebas/e2e/capturas/

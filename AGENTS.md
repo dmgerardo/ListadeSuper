@@ -38,12 +38,23 @@ contra la última versión disponible en esta sesión — revisar si se actualiz
   `firebase.json` (aplicada, no Report-Only).
 - **Todo JS/CSS nuevo** se agrega a la lista `ARCHIVOS_APP_SHELL` de `sw.js` y a los
   `<script>`/`<link>` de los HTML que lo necesiten.
+- **Semántica de `comprado`** (confirmada con el usuario): marcado = "ya lo tengo / no hace
+  falta"; desmarcado = "por comprar". La lista es fija y se reutiliza: no se borran artículos
+  al comprar. Lo importado entra marcado. La vista por defecto es "Por comprar".
+- **Toda regla nueva o cambiada lleva su caso en `pruebas/reglas/reglas.test.js`** y se
+  corre `npm test` ahí antes de publicar. `agregadoPor`/`compradoPor` NO se atan a
+  `auth.uid` a propósito (el Deshacer de un borrado restaura la autoría de otro miembro).
+- **Antes de cada push**: `node --check`, `node --test pruebas/*.test.js`, pruebas de reglas
+  y `pruebas/e2e/flujo-compra.js` (ver `pruebas/README.md`).
 - **Español** en UI, comentarios, commits y documentación.
 - **Controles globales solo en la barra inferior flotante** (`render-utils.js`): pestañas de
   la pantalla, ayuda, estado+versión y cuenta van dentro de la píldora; la acción principal
   (+) va en el botón circular a su derecha. Cada script monta lo suyo en su ranura
   (`data-ranura="pestanas|ayuda|estado|cuenta|principal"`) y la vacía al cambiar de
-  pantalla o de sesión. No crear FABs ni barras fijas nuevas fuera de ella.
+  pantalla o de sesión. No crear FABs ni barras fijas nuevas fuera de ella. En `lista.html`
+  NO hay "+" aparte (4 pestañas + 3 controles no caben con él en 375 px): agregar es el "+"
+  del campo rápido (vacío = formulario completo).
+- **Un solo toast a la vez** (`mostrarToast` reemplaza el anterior).
 
 ## 3. Estructura de archivos
 
@@ -57,15 +68,18 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `js/auth.js` | Login/logout Google, `requerirSesion()`, perfil en `usuarios/{uid}` |
 | `js/iconos.js` | `ICONOS_LUCIDE`, `icono()`, `iconoTexto()` |
 | `js/render-utils.js` | `esc`, `urlSegura`, `formatoMoneda`, `hoyLocalISO`, `abrirModal`, `confirmarCierreConCambios`, `mostrarToast` y la barra inferior flotante: `barraInferior`, `ranuraBarra`, `vaciarRanura`, `montarPestanas`, `montarAccionPrincipal`, `montarBotonAyuda`, `montarMenuCuenta` |
-| `js/catalogo-categorias.js` | Categorías/pasillos y unidades por defecto (placeholder, confirmar en Fase 2) |
+| `js/catalogo-categorias.js` | Las 14 categorías/pasillos del usuario (confirmadas en Fase 2, orden de su nota de iPhone; "Especiales" es el cajón, no hay "Otros"), alias para importar y las 11 unidades |
+| `js/logica-articulos.js` | Lógica pura, probada en Node: `normalizarNombre`, `interpretarTextoRapido` ("2 kg tomate"), `ordenCategoriasEfectivo`, `agruparArticulos`, `totalesLista`, `parsearNotaImportada`, `separarRepetidos`, `buscarPorNombre`, `textoCantidad` |
+| `js/vista-articulos.js` | Pantalla de una lista: vistas "Por comprar"/"Toda la lista", campo rápido (busca + agrega), formulario agregar/editar/eliminar, marcar todo, importar nota, totales, Deshacer |
 | `js/vista-listas.js` | Pantalla "Mis listas": crear, abrir, renombrar |
 | `js/pagina-inicio.js` | Script de arranque de `index.html` (bienvenida o "Mis listas") |
-| `js/pagina-lista.js` | Script de arranque de `lista.html` |
+| `js/pagina-lista.js` | Script de arranque de `lista.html` (pestañas de la barra + `montarVistaArticulos`) |
 | `js/version.js` | Estado de conexión + versión en la barra inferior (tocar = forzar actualización) y registro del Service Worker |
 | `index.html` | Login + "Mis listas" |
-| `lista.html` | Abre una lista (solo confirma acceso; artículos llegan en Fase 2) |
+| `lista.html` | Una lista con sus artículos (Fase 2) |
+| `pruebas/` | Pruebas: lógica en Node, reglas con el emulador, flujo con Playwright — ver `pruebas/README.md` |
 | `historial.html` | Historial de versiones para usuarios |
-| `database.rules.json` | Reglas (copiadas de `PROYECTO_INICIAL.md` §5, **sin probar con el emulador todavía** — ver `PROXIMA_SESION.md`) |
+| `database.rules.json` | Reglas. Probadas con el Emulador (`pruebas/reglas`, 15 casos): Fase 1 (crear lista, no-miembro, renombrar, perfil) y artículos (validación por campo, multi-ruta). Invitaciones/miembros (Fase 4) aún sin casos |
 | `sw.js` | App shell cacheado por versión |
 
 ## 4. Autenticación
@@ -130,9 +144,10 @@ confirmado — se usará en Fase 4).
 
 ## 7. Pendiente de verificar (no inventar que ya se probó)
 
-- Versión del SDK compat de Firebase (`10.14.1`) no se confirmó contra la más reciente —
-  no había acceso a internet en la sesión que creó este archivo.
-- `database.rules.json` no se probó con el Emulador de Firebase ni el Rules Playground.
+- SDK de Firebase: la app usa `10.14.1` (la última de la rama 10); la más reciente en npm al
+  2026-10-06 es `12.19.0` (verificado con `npm view firebase version`). Actualizar es un
+  cambio aparte: probarlo con `pruebas/e2e` y en el sitio real.
+- Reglas de invitaciones/miembros (unirse, quitar miembro, salir): sin casos en el emulador todavía (Fase 4).
 - Login con Google no se probó en iPhone real (Safari ni PWA instalada). Tampoco se pudo
   completar un login real en esta sesión: Authentication → Google todavía no está
   habilitado en la consola, y la `apiKey` actual devuelve `auth/api-key-not-valid` (ver
@@ -140,10 +155,11 @@ confirmado — se usará en Fase 4).
   no un typo: el formato y los demás campos del config son correctos).
 - El paso `deploy --only database` del workflow de GitHub Actions no se ejecutó nunca
   (requiere el proyecto de Firebase y los secretos ya configurados en GitHub).
-- `node --check` ya corre (2026-10-06, Node 22 en la sesión en la nube) y pasa en todos los
-  `.js`. Pruebas de lógica pura en Node: todavía no existen.
-- Playwright corrió por primera vez (2026-10-06) solo para la barra inferior, **en local y
-  con el SDK de Firebase reemplazado por un mock** (sin login real ni CSP). No sustituye
-  probar contra `https://pilo-compras.web.app`.
+- Las pruebas de `pruebas/e2e` usan Firebase simulado: no cubren login real, latencia ni
+  modo sin conexión. La sesión en la nube **no puede abrir `pilo-compras.web.app`** (la política
+  de red del entorno lo bloquea): lo desplegado lo verifica el usuario.
+- Contraste: el texto de `.btn` (`--color-texto-sobre-primario` sobre `--color-primario`, modo
+  claro) da **3.42:1**, menos del 4.5:1 de WCAG para texto normal (viene de la Fase 0). Para
+  íconos (≥ 3:1) sí cumple. Pendiente decidir con el usuario (oscurecer el fondo del botón).
 - Los íconos de `icons/*.png` son un placeholder generado por script (carrito simple sobre
   fondo `--color-primario`), no un diseño final.

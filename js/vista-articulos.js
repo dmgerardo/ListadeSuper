@@ -1,0 +1,680 @@
+// Pantalla de una lista: artículos agrupados por pasillo, con dos vistas.
+//
+// Modelo de uso (confirmado con el usuario en la Fase 2): la lista es fija y se reutiliza.
+// MARCADO (comprado: true) = "ya lo tengo / no hace falta"; DESMARCADO = "por comprar".
+// En casa se desmarca lo que falta (vista "Toda la lista"); en la tienda se marca lo que se
+// va tomando (vista "Por comprar", la de por defecto). Por eso no hay sección "En el
+// carrito": lo marcado simplemente sale de "Por comprar".
+//
+// Usa logica-articulos.js para todo cálculo (agrupar, totales, importar, interpretar texto).
+
+var _CLAVE_VISTA_ARTICULOS = "vistaArticulos"; // comodidad local: la última vista usada
+
+function _leerVistaGuardada() {
+  try {
+    return localStorage.getItem(_CLAVE_VISTA_ARTICULOS) === "todo" ? "todo" : "pendientes";
+  } catch (e) {
+    return "pendientes";
+  }
+}
+
+function _guardarVista(vista) {
+  try {
+    localStorage.setItem(_CLAVE_VISTA_ARTICULOS, vista);
+  } catch (e) {}
+}
+
+// _numeroDeCampo("1,5") → 1.5; "" → null. Los campos numéricos son type="text" con
+// inputmode="decimal" para aceptar coma decimal (teclado del iPhone en español).
+function _numeroDeCampo(texto) {
+  var t = String(texto || "").trim().replace(",", ".");
+  if (!t) return null;
+  var n = Number(t);
+  return isFinite(n) ? n : NaN;
+}
+
+// montarVistaArticulos(contenedor, listaId, usuario): devuelve la función de limpieza.
+function montarVistaArticulos(contenedor, listaId, usuario) {
+  var info = {};
+  var articulos = {};
+  var vista = _leerVistaGuardada();
+  var filtro = "";
+  var detenerInfo = null;
+  var detenerArticulos = null;
+  var temporizadorSinAcceso = null;
+  var sinAcceso = false;
+
+  var refArticulos = refNodo("listas/" + listaId + "/articulos");
+  function refArticulo(id) {
+    return refNodo("listas/" + listaId + "/articulos/" + id);
+  }
+  function rutaArticulo(id) {
+    return "listas/" + listaId + "/articulos/" + id;
+  }
+
+  contenedor.innerHTML =
+    '<div class="contenedor">' +
+    '<a href="index.html" class="btn-texto enlace-con-icono">' + icono("chevron-left", 18) + "<span>Mis listas</span></a>" +
+    '<h1 data-nombre-lista>Cargando…</h1>' +
+    '<p class="texto-suave oculto" data-sin-acceso>No existe, o tu cuenta no es miembro de ella. ' +
+    "Si te la compartieron, pide una invitación nueva.</p>" +
+    '<div data-cuerpo class="oculto">' +
+    '<p class="resumen-lista" data-resumen aria-live="polite"></p>' +
+    '<div class="selector-vista" role="tablist" aria-label="Qué artículos ver">' +
+    '<button type="button" role="tab" data-vista="pendientes">Por comprar <span class="contador" data-contador-pendientes></span></button>' +
+    '<button type="button" role="tab" data-vista="todo">Toda la lista</button>' +
+    "</div>" +
+    '<form class="campo-rapido" data-form-rapido autocomplete="off">' +
+    icono("search", 20) +
+    '<input type="text" data-campo-rapido maxlength="130" enterkeyhint="done" ' +
+    'placeholder="Buscar o agregar (ej. 2 kg tomate)" aria-label="Buscar o agregar artículo">' +
+    '<button type="submit" class="btn-accion-icono" aria-label="Agregar artículo" title="Agregar artículo">' + icono("plus", 22) + "</button>" +
+    "</form>" +
+    '<div class="acciones-lista" data-acciones></div>' +
+    '<div data-articulos></div>' +
+    "</div>" +
+    "</div>";
+
+  var tituloEl = contenedor.querySelector("[data-nombre-lista]");
+  var cuerpo = contenedor.querySelector("[data-cuerpo]");
+  var avisoSinAcceso = contenedor.querySelector("[data-sin-acceso]");
+  var resumenEl = contenedor.querySelector("[data-resumen]");
+  var contadorEl = contenedor.querySelector("[data-contador-pendientes]");
+  var zonaAcciones = contenedor.querySelector("[data-acciones]");
+  var zonaArticulos = contenedor.querySelector("[data-articulos]");
+  var formRapido = contenedor.querySelector("[data-form-rapido]");
+  var campoRapido = contenedor.querySelector("[data-campo-rapido]");
+  var pestanasVista = contenedor.querySelectorAll("[data-vista]");
+
+  // ===== Pintado =====
+
+  function filaArticulo(a) {
+    var detalle = [];
+    var cantidad = textoCantidad(a.cantidad, a.unidad);
+    if (cantidad) detalle.push(esc(cantidad));
+    if (typeof a.precio === "number") {
+      var n = typeof a.cantidad === "number" ? a.cantidad : 1;
+      detalle.push(esc(formatoMoneda(n * a.precio, info.moneda)));
+    }
+    if (a.notas) detalle.push('<span class="notas-articulo">' + esc(a.notas) + "</span>");
+    var etiquetaCasilla = a.comprado
+      ? "Desmarcar " + a.nombre + " (poner por comprar)"
+      : "Marcar " + a.nombre + " como comprado";
+    return (
+      '<li class="fila-articulo' + (a.comprado ? " marcado" : "") + '">' +
+      '<button type="button" class="casilla" role="checkbox" aria-checked="' + (a.comprado ? "true" : "false") + '" ' +
+      'data-alternar="' + esc(a.id) + '" aria-label="' + esc(etiquetaCasilla) + '" title="' + esc(etiquetaCasilla) + '">' +
+      '<span class="casilla-circulo">' + icono("check", 18) + "</span>" +
+      "</button>" +
+      '<button type="button" class="cuerpo-articulo" data-editar="' + esc(a.id) + '" aria-label="Editar ' + esc(a.nombre) + '">' +
+      '<span class="nombre-articulo">' + esc(a.nombre) + "</span>" +
+      (detalle.length ? '<span class="detalle-articulo">' + detalle.join(" · ") + "</span>" : "") +
+      "</button>" +
+      "</li>"
+    );
+  }
+
+  function pintarGrupos(grupos) {
+    return grupos
+      .map(function (g) {
+        return (
+          '<section class="grupo-pasillo">' +
+          '<h2 class="titulo-pasillo">' + esc(g.nombre) + ' <span class="contador">' + g.articulos.length + "</span></h2>" +
+          '<ul class="lista-articulos">' + g.articulos.map(filaArticulo).join("") + "</ul>" +
+          "</section>"
+        );
+      })
+      .join("");
+  }
+
+  function pintar() {
+    programarRender("vista-articulos", function () {
+      if (!info.nombre) {
+        cuerpo.classList.add("oculto");
+        tituloEl.textContent = sinAcceso ? "No encontramos esta lista" : "Cargando…";
+        avisoSinAcceso.classList.toggle("oculto", !sinAcceso);
+        return;
+      }
+      tituloEl.textContent = info.nombre;
+      avisoSinAcceso.classList.add("oculto");
+      cuerpo.classList.remove("oculto");
+
+      var t = totalesLista(articulos);
+      contadorEl.textContent = t.pendientes ? String(t.pendientes) : "";
+      var partes = [t.pendientes === 1 ? "1 por comprar" : t.pendientes + " por comprar"];
+      if (t.total > 0) {
+        partes.push(formatoMoneda(t.total, info.moneda) + " estimado" + (t.sinPrecio ? " (" + t.sinPrecio + " sin precio)" : ""));
+      }
+      partes.push(t.pendientes + t.marcados + " en total");
+      resumenEl.textContent = partes.join(" · ");
+
+      pestanasVista.forEach(function (b) {
+        var activa = b.dataset.vista === vista;
+        b.setAttribute("aria-selected", activa ? "true" : "false");
+        b.classList.toggle("activa", activa);
+      });
+
+      // Acciones según la vista (se ocultan mientras se busca, para no distraer).
+      var acciones = "";
+      if (!filtro) {
+        if (vista === "pendientes" && t.pendientes > 0) {
+          acciones = '<button type="button" class="btn-texto enlace-con-icono" data-accion="marcar-todo">' +
+            icono("check-check", 18) + "<span>Marcar todo como comprado</span></button>";
+        } else if (vista === "todo") {
+          acciones = '<button type="button" class="btn-texto enlace-con-icono" data-accion="importar">' +
+            icono("clipboard-list", 18) + "<span>Importar desde una nota</span></button>";
+        }
+      }
+      zonaAcciones.innerHTML = acciones;
+
+      var total = t.pendientes + t.marcados;
+      if (total === 0) {
+        zonaArticulos.innerHTML =
+          '<div class="vacio"><p>Esta lista está vacía. Escribe arriba para agregar un artículo, ' +
+          "o pega tu lista desde una nota.</p>" +
+          '<button type="button" class="btn" data-accion="importar">' + icono("clipboard-list", 18) + "<span>Importar desde una nota</span></button></div>";
+        return;
+      }
+
+      if (filtro) {
+        // Al buscar se ve TODO lo que coincide (marcado o no), para poder desmarcar algo que
+        // ya existe en vez de agregarlo duplicado.
+        var coincidencias = agruparArticulos(articulos, info.ordenCategorias, { filtro: filtro });
+        var exacto = buscarPorNombre(articulos, interpretarTextoRapido(filtro).nombre);
+        var sugerencia = exacto
+          ? ""
+          : '<p class="pista-busqueda">Enter para agregar <strong>' + esc(interpretarTextoRapido(filtro).nombre) + "</strong> como nuevo.</p>";
+        zonaArticulos.innerHTML = coincidencias.length
+          ? sugerencia + pintarGrupos(coincidencias)
+          : '<p class="vacio">Sin coincidencias. Enter para agregar <strong>' + esc(interpretarTextoRapido(filtro).nombre) + "</strong>.</p>";
+        return;
+      }
+
+      var grupos = agruparArticulos(articulos, info.ordenCategorias, { soloPendientes: vista === "pendientes" });
+      if (vista === "pendientes" && grupos.length === 0) {
+        zonaArticulos.innerHTML =
+          '<div class="vacio"><p>Nada por comprar. En <strong>Toda la lista</strong> desmarca lo que necesites.</p>' +
+          '<button type="button" class="btn btn-secundario" data-ir-vista="todo">Ver toda la lista</button></div>';
+        return;
+      }
+      zonaArticulos.innerHTML = pintarGrupos(grupos);
+    });
+  }
+
+  // ===== Escrituras =====
+
+  function fallo(mensaje) {
+    return function (error) {
+      console.error(mensaje, error);
+      mostrarToast(mensaje);
+    };
+  }
+
+  // alternar(id): marcar ↔ desmarcar, campo por campo. En "Por comprar" el artículo
+  // desaparece al marcarlo, así que ahí se ofrece Deshacer (un toque equivocado en la tienda
+  // es fácil); en "Toda la lista" el cambio se ve en su lugar y no hace falta.
+  function alternar(id) {
+    var a = articulos[id];
+    if (!a) return;
+    var antes = { comprado: !!a.comprado, compradoPor: a.compradoPor || null };
+    var ahora = !a.comprado;
+    actualizar(refArticulo(id), { comprado: ahora, compradoPor: ahora ? usuario.uid : null })
+      .catch(fallo("No se pudo guardar el cambio"));
+    if (vista === "pendientes" && !filtro && ahora) {
+      mostrarToast(a.nombre + " marcado", {
+        accion: {
+          etiqueta: "Deshacer",
+          alActivar: function () {
+            actualizar(refArticulo(id), antes).catch(fallo("No se pudo deshacer"));
+          }
+        }
+      });
+    }
+  }
+
+  function crearArticulo(datos) {
+    var id = refArticulos.push().key;
+    var articulo = {
+      nombre: datos.nombre,
+      cantidad: datos.cantidad || 1,
+      unidad: datos.unidad || "pieza",
+      categoria: categoriaValida(datos.categoria),
+      comprado: !!datos.comprado,
+      agregadoPor: usuario.uid,
+      creado: firebase.database.ServerValue.TIMESTAMP
+    };
+    if (typeof datos.precio === "number") articulo.precio = datos.precio;
+    if (datos.notas) articulo.notas = datos.notas;
+    if (articulo.comprado) articulo.compradoPor = usuario.uid;
+    return refArticulo(id).set(articulo).then(function () {
+      return id;
+    });
+  }
+
+  // Enter en el campo rápido: si ya existe un artículo con ese nombre, se pone "por
+  // comprar" (con la cantidad escrita, si se escribió una) en vez de duplicarlo; si no, se
+  // crea por comprar en "Especiales" (se cambia de pasillo tocándolo).
+  function agregarRapido(texto) {
+    var datos = interpretarTextoRapido(texto);
+    if (!datos.nombre) return;
+    var existente = buscarPorNombre(articulos, datos.nombre);
+    var trajoCantidad = /^\d/.test(texto.trim());
+    if (existente) {
+      var a = articulos[existente];
+      var cambios = {};
+      if (a.comprado) {
+        cambios.comprado = false;
+        cambios.compradoPor = null;
+      }
+      if (trajoCantidad) {
+        cambios.cantidad = datos.cantidad;
+        cambios.unidad = datos.unidad;
+      }
+      if (Object.keys(cambios).length === 0) {
+        mostrarToast(a.nombre + " ya está por comprar");
+        return;
+      }
+      var antes = { comprado: !!a.comprado, compradoPor: a.compradoPor || null, cantidad: a.cantidad === undefined ? null : a.cantidad, unidad: a.unidad || null };
+      actualizar(refArticulo(existente), cambios).catch(fallo("No se pudo guardar el cambio"));
+      mostrarToast(a.nombre + " está por comprar", {
+        accion: {
+          etiqueta: "Deshacer",
+          alActivar: function () {
+            var revertir = { comprado: antes.comprado, compradoPor: antes.compradoPor };
+            if (trajoCantidad) {
+              revertir.cantidad = antes.cantidad;
+              revertir.unidad = antes.unidad;
+            }
+            actualizar(refArticulo(existente), revertir).catch(fallo("No se pudo deshacer"));
+          }
+        }
+      });
+      return;
+    }
+    crearArticulo({ nombre: datos.nombre.slice(0, LARGO_MAX_NOMBRE), cantidad: datos.cantidad, unidad: datos.unidad, categoria: CATEGORIA_DEFECTO, comprado: false })
+      .then(function () {
+        mostrarToast(datos.nombre + " agregado a Especiales");
+      })
+      .catch(fallo("No se pudo agregar el artículo"));
+  }
+
+  function eliminarArticulo(id) {
+    var copia = Object.assign({}, articulos[id]);
+    eliminar(refArticulo(id))
+      .then(function () {
+        mostrarToast((copia.nombre || "Artículo") + " eliminado", {
+          accion: {
+            etiqueta: "Deshacer",
+            alActivar: function () {
+              // Se restaura tal cual (mismo id, misma autoría): las reglas lo permiten a
+              // cualquier miembro, probado en pruebas/reglas.
+              refArticulo(id).set(copia).catch(fallo("No se pudo deshacer"));
+            }
+          }
+        });
+      })
+      .catch(fallo("No se pudo eliminar el artículo"));
+  }
+
+  // Marcar todo = UNA escritura multi-ruta (atómica: o se marcan todos o ninguno).
+  function marcarTodo() {
+    var ids = Object.keys(articulos).filter(function (id) {
+      return articulos[id] && articulos[id].nombre && !articulos[id].comprado;
+    });
+    if (!ids.length) return;
+    var cambios = {};
+    var revertir = {};
+    ids.forEach(function (id) {
+      cambios[rutaArticulo(id) + "/comprado"] = true;
+      cambios[rutaArticulo(id) + "/compradoPor"] = usuario.uid;
+      revertir[rutaArticulo(id) + "/comprado"] = false;
+      revertir[rutaArticulo(id) + "/compradoPor"] = articulos[id].compradoPor || null;
+    });
+    actualizarMultiple(cambios)
+      .then(function () {
+        mostrarToast(ids.length === 1 ? "1 artículo marcado" : ids.length + " artículos marcados", {
+          accion: {
+            etiqueta: "Deshacer",
+            alActivar: function () {
+              actualizarMultiple(revertir).catch(fallo("No se pudo deshacer"));
+            }
+          }
+        });
+      })
+      .catch(fallo("No se pudieron marcar los artículos"));
+  }
+
+  // ===== Formulario agregar / editar (comparten formulario) =====
+
+  function opcionesCategoria(seleccionada) {
+    return ordenCategoriasEfectivo(info.ordenCategorias)
+      .map(function (id) {
+        return '<option value="' + esc(id) + '"' + (id === seleccionada ? " selected" : "") + ">" + esc(CATEGORIAS_NOMBRES[id]) + "</option>";
+      })
+      .join("");
+  }
+
+  function opcionesUnidad(seleccionada) {
+    var unidades = UNIDADES_DEFECTO.slice();
+    // Un dato con una unidad que ya no está en el catálogo se conserva como opción.
+    if (seleccionada && unidades.indexOf(seleccionada) === -1) unidades.push(seleccionada);
+    return unidades
+      .map(function (u) {
+        return '<option value="' + esc(u) + '"' + (u === seleccionada ? " selected" : "") + ">" + esc(u) + "</option>";
+      })
+      .join("");
+  }
+
+  function abrirFormularioArticulo(idExistente) {
+    var a = idExistente ? articulos[idExistente] : null;
+    if (idExistente && !a) return;
+    var inicial = {
+      nombre: a ? a.nombre : "",
+      cantidad: a && typeof a.cantidad === "number" ? String(a.cantidad) : "1",
+      unidad: a && a.unidad ? a.unidad : "pieza",
+      categoria: a ? categoriaValida(a.categoria) : CATEGORIA_DEFECTO,
+      precio: a && typeof a.precio === "number" ? String(a.precio) : "",
+      notas: a && a.notas ? a.notas : ""
+    };
+    var modal = abrirModal(
+      "<h3>" + (a ? "Editar artículo" : "Nuevo artículo") + "</h3>" +
+        '<form data-form-articulo novalidate>' +
+        '<div class="campo"><label for="art-nombre">Nombre</label>' +
+        '<input id="art-nombre" name="nombre" type="text" maxlength="120" required value="' + esc(inicial.nombre) + '"></div>' +
+        '<div class="fila-campos">' +
+        '<div class="campo"><label for="art-cantidad">Cantidad</label>' +
+        '<input id="art-cantidad" name="cantidad" type="text" inputmode="decimal" value="' + esc(inicial.cantidad) + '"></div>' +
+        '<div class="campo"><label for="art-unidad">Unidad</label>' +
+        '<select id="art-unidad" name="unidad">' + opcionesUnidad(inicial.unidad) + "</select></div>" +
+        "</div>" +
+        '<div class="fila-campos">' +
+        '<div class="campo"><label for="art-categoria">Pasillo</label>' +
+        '<select id="art-categoria" name="categoria">' + opcionesCategoria(inicial.categoria) + "</select></div>" +
+        '<div class="campo"><label for="art-precio">Precio unitario</label>' +
+        '<input id="art-precio" name="precio" type="text" inputmode="decimal" placeholder="Opcional" value="' + esc(inicial.precio) + '"></div>' +
+        "</div>" +
+        '<div class="campo"><label for="art-notas">Notas</label>' +
+        '<input id="art-notas" name="notas" type="text" maxlength="200" placeholder="Opcional (marca, tamaño…)" value="' + esc(inicial.notas) + '"></div>' +
+        '<p class="error-formulario oculto" data-error role="alert"></p>' +
+        '<div class="fila-botones">' +
+        (a
+          ? '<button type="button" class="btn-accion-icono btn-accion-peligro" data-eliminar aria-label="Eliminar artículo" title="Eliminar artículo">' + icono("trash-2", 20) + "</button>" +
+            '<span class="separador-flexible"></span>'
+          : "") +
+        '<button type="button" class="btn-accion-icono" data-cancelar aria-label="Cancelar" title="Cancelar">' + icono("x", 20) + "</button>" +
+        '<button type="submit" class="btn-accion-icono btn-accion-primario" aria-label="Guardar" title="Guardar">' + icono("save", 20) + "</button>" +
+        "</div>" +
+        "</form>",
+      null
+    );
+    var form = modal.elemento.querySelector("[data-form-articulo]");
+    var errorEl = modal.elemento.querySelector("[data-error]");
+
+    function valores() {
+      return {
+        nombre: form.nombre.value.replace(/\s+/g, " ").trim(),
+        cantidad: form.cantidad.value.trim(),
+        unidad: form.unidad.value,
+        categoria: form.categoria.value,
+        precio: form.precio.value.trim(),
+        notas: form.notas.value.trim()
+      };
+    }
+
+    function hayCambios() {
+      var v = valores();
+      return Object.keys(inicial).some(function (k) {
+        return String(v[k]) !== String(inicial[k]);
+      });
+    }
+
+    function mostrarError(texto) {
+      errorEl.textContent = texto;
+      errorEl.classList.remove("oculto");
+    }
+
+    function guardar() {
+      var v = valores();
+      if (!v.nombre) return mostrarError("Escribe el nombre del artículo.");
+      var cantidad = _numeroDeCampo(v.cantidad);
+      if (cantidad === null) cantidad = 1;
+      if (!(cantidad > 0) || cantidad > 9999) return mostrarError("La cantidad debe ser un número mayor que 0.");
+      var precio = _numeroDeCampo(v.precio);
+      if (precio !== null && (!(precio >= 0) || precio >= 10000000)) return mostrarError("El precio debe ser un número (o déjalo vacío).");
+      if (precio !== null) precio = Math.round(precio * 100) / 100;
+
+      if (!a) {
+        crearArticulo({ nombre: v.nombre, cantidad: cantidad, unidad: v.unidad, categoria: v.categoria, precio: precio, notas: v.notas, comprado: false })
+          .then(function () { mostrarToast("Guardado ✓"); })
+          .catch(fallo("No se pudo guardar el artículo"));
+        modal.cerrar("manual");
+        return;
+      }
+      // Edición campo por campo: solo lo que cambió; vaciar precio o notas los borra.
+      var cambios = {};
+      if (v.nombre !== a.nombre) cambios.nombre = v.nombre;
+      if (cantidad !== a.cantidad) cambios.cantidad = cantidad;
+      if (v.unidad !== a.unidad) cambios.unidad = v.unidad;
+      if (v.categoria !== a.categoria) cambios.categoria = v.categoria;
+      if (precio !== (typeof a.precio === "number" ? a.precio : null)) cambios.precio = precio;
+      if ((v.notas || null) !== (a.notas || null)) cambios.notas = v.notas || null;
+      modal.cerrar("manual");
+      if (!Object.keys(cambios).length) return;
+      actualizar(refArticulo(idExistente), cambios)
+        .then(function () { mostrarToast("Guardado ✓"); })
+        .catch(fallo("No se pudo guardar el artículo"));
+    }
+
+    form.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      guardar();
+    });
+    modal.elemento.querySelector("[data-cancelar]").addEventListener("click", function () {
+      confirmarCierreConCambios(hayCambios, function () { modal.cerrar("manual"); }, guardar);
+    });
+    var botonEliminar = modal.elemento.querySelector("[data-eliminar]");
+    if (botonEliminar) {
+      botonEliminar.addEventListener("click", function () {
+        modal.cerrar("manual");
+        eliminarArticulo(idExistente);
+      });
+    }
+  }
+
+  // ===== Importar desde una nota =====
+
+  function abrirImportar() {
+    var modal = abrirModal(
+      "<h3>Importar desde una nota</h3>" +
+        '<p class="texto-suave">Pega tu lista. Cada renglón con el nombre de un pasillo (Frutas, Verduras, ' +
+        "Abarrotes…) abre esa sección, y cada renglón con viñeta (<code>* Plátanos</code>) es un artículo. " +
+        "Todo entra <strong>marcado</strong> (no hace falta); después desmarca lo que necesites comprar.</p>" +
+        '<div class="campo"><label for="texto-importar">Tu lista</label>' +
+        '<textarea id="texto-importar" rows="8" maxlength="30000" placeholder="Frutas&#10;* Plátanos&#10;* Mangos"></textarea></div>' +
+        '<div data-vista-previa aria-live="polite"></div>' +
+        '<div class="fila-botones">' +
+        '<button type="button" class="btn btn-secundario" data-cancelar>Cancelar</button>' +
+        '<button type="button" class="btn" data-importar disabled>Importar</button>' +
+        "</div>",
+      null
+    );
+    var area = modal.elemento.querySelector("#texto-importar");
+    var previa = modal.elemento.querySelector("[data-vista-previa]");
+    var botonImportar = modal.elemento.querySelector("[data-importar]");
+    var porAgregar = [];
+
+    function actualizarPrevia() {
+      var r = parsearNotaImportada(area.value);
+      var s = separarRepetidos(r.articulos, articulos);
+      porAgregar = s.aAgregar;
+      botonImportar.disabled = porAgregar.length === 0;
+      botonImportar.textContent = porAgregar.length ? "Importar " + porAgregar.length : "Importar";
+      if (!area.value.trim()) {
+        previa.innerHTML = "";
+        return;
+      }
+      var porCategoria = {};
+      porAgregar.forEach(function (n) {
+        porCategoria[n.categoria] = (porCategoria[n.categoria] || 0) + 1;
+      });
+      var html = '<div class="tarjeta vista-previa-importar"><p><strong>' + porAgregar.length + "</strong> artículos nuevos";
+      if (s.repetidos.length) html += " · " + s.repetidos.length + " ya estaban en la lista (no se duplican)";
+      html += "</p>";
+      var cats = ordenCategoriasEfectivo(info.ordenCategorias).filter(function (c) { return porCategoria[c]; });
+      if (cats.length) {
+        html += '<ul class="resumen-importar">' + cats.map(function (c) {
+          return "<li>" + esc(CATEGORIAS_NOMBRES[c]) + ": " + porCategoria[c] + "</li>";
+        }).join("") + "</ul>";
+      }
+      if (r.ignorados.length) {
+        html += '<p class="texto-suave">Renglones que no son pasillo ni artículo (se ignoran): ' +
+          r.ignorados.slice(0, 5).map(function (t) { return "<q>" + esc(t.length > 60 ? t.slice(0, 60) + "…" : t) + "</q>"; }).join(", ") +
+          (r.ignorados.length > 5 ? " y " + (r.ignorados.length - 5) + " más" : "") + "</p>";
+      }
+      previa.innerHTML = html + "</div>";
+    }
+
+    area.addEventListener("input", actualizarPrevia);
+    modal.elemento.querySelector("[data-cancelar]").addEventListener("click", function () {
+      confirmarCierreConCambios(function () { return !!area.value.trim(); }, function () { modal.cerrar("manual"); }, importar);
+    });
+    botonImportar.addEventListener("click", importar);
+
+    // UNA escritura multi-ruta con todos los artículos. Las llaves push se generan en orden,
+    // y como son cronológicas, la lista conserva el orden de la nota dentro de cada pasillo.
+    function importar() {
+      if (!porAgregar.length) return;
+      var cambios = {};
+      var deshacer = {};
+      porAgregar.forEach(function (n) {
+        var id = refArticulos.push().key;
+        cambios[rutaArticulo(id)] = {
+          nombre: n.nombre,
+          cantidad: 1,
+          unidad: "pieza",
+          categoria: n.categoria,
+          comprado: true,
+          compradoPor: usuario.uid,
+          agregadoPor: usuario.uid,
+          creado: firebase.database.ServerValue.TIMESTAMP
+        };
+        deshacer[rutaArticulo(id)] = null;
+      });
+      var cuantos = porAgregar.length;
+      modal.cerrar("manual");
+      if (vista !== "todo") cambiarVista("todo"); // lo importado entra marcado: verlo en "Toda la lista"
+      actualizarMultiple(cambios)
+        .then(function () {
+          mostrarToast(cuantos + " artículos importados", {
+            duracionMs: 8000,
+            accion: {
+              etiqueta: "Deshacer",
+              alActivar: function () {
+                actualizarMultiple(deshacer).catch(fallo("No se pudo deshacer"));
+              }
+            }
+          });
+        })
+        .catch(fallo("No se pudo importar la lista"));
+    }
+  }
+
+  // ===== Eventos =====
+
+  function cambiarVista(nueva) {
+    vista = nueva;
+    _guardarVista(nueva);
+    pintar();
+  }
+
+  pestanasVista.forEach(function (b) {
+    b.addEventListener("click", function () {
+      cambiarVista(b.dataset.vista);
+    });
+  });
+
+  campoRapido.addEventListener("input", function () {
+    filtro = campoRapido.value.trim();
+    pintar();
+  });
+
+  // El "+" del campo es la acción de agregar de esta pantalla (no hay botón "+" aparte en la
+  // barra inferior: con las 4 pestañas y los 3 controles globales no cabe en un iPhone).
+  // Con texto agrega rápido; vacío abre el formulario completo.
+  formRapido.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var texto = campoRapido.value.trim();
+    if (!texto) {
+      if (info.nombre) abrirFormularioArticulo(null);
+      return;
+    }
+    campoRapido.value = "";
+    filtro = "";
+    agregarRapido(texto);
+    pintar();
+    campoRapido.focus(); // para seguir agregando sin volver a tocar el campo
+  });
+
+  contenedor.addEventListener("click", function (ev) {
+    var alternarBtn = ev.target.closest("[data-alternar]");
+    if (alternarBtn) {
+      alternar(alternarBtn.dataset.alternar);
+      return;
+    }
+    var editarBtn = ev.target.closest("[data-editar]");
+    if (editarBtn) {
+      abrirFormularioArticulo(editarBtn.dataset.editar);
+      return;
+    }
+    var accion = ev.target.closest("[data-accion]");
+    if (accion) {
+      if (accion.dataset.accion === "marcar-todo") marcarTodo();
+      if (accion.dataset.accion === "importar") abrirImportar();
+      return;
+    }
+    var irVista = ev.target.closest("[data-ir-vista]");
+    if (irVista) cambiarVista(irVista.dataset.irVista);
+  });
+
+  montarBotonAyuda(
+    "<h3>Esta lista</h3>" +
+      "<p><strong>Marcado</strong> = ya lo tienes o no hace falta. <strong>Sin marcar</strong> = por comprar.</p>" +
+      "<p><strong>En casa</strong>: abre <em>Toda la lista</em> y quita la marca de lo que necesites.</p>" +
+      "<p><strong>En la tienda</strong>: en <em>Por comprar</em> ves solo lo que falta, por pasillo. Toca el " +
+      "círculo al tomar cada cosa y desaparece de la vista (si te equivocas, toca <em>Deshacer</em>).</p>" +
+      "<p>El campo de arriba <strong>busca</strong> mientras escribes. Con Enter (o <strong>+</strong>), si el " +
+      "artículo ya existe lo pone por comprar; si no, lo agrega. Puedes escribir la cantidad: <em>2 kg tomate</em>. " +
+      "Con el campo vacío, <strong>+</strong> abre el formulario completo.</p>" +
+      "<p>Toca el nombre de un artículo para cambiar cantidad, pasillo, precio o notas, o para eliminarlo.</p>"
+  );
+
+  // ===== Datos en tiempo real =====
+
+  detenerInfo = escuchar(refNodo("listas/" + listaId + "/info"), function (valor) {
+    info = valor || {};
+    if (info.nombre) {
+      sinAcceso = false;
+      clearTimeout(temporizadorSinAcceso);
+    }
+    pintar();
+  });
+  detenerArticulos = escuchar(refArticulos, function (valor) {
+    articulos = valor || {};
+    pintar();
+  });
+  // escuchar() entrega {} tanto "aún no llega" como "no existe / sin permiso": si en 6 s no
+  // llega el nombre de la lista, se avisa en vez de quedarse en "Cargando…" para siempre.
+  temporizadorSinAcceso = setTimeout(function () {
+    if (!info.nombre) {
+      sinAcceso = true;
+      pintar();
+    }
+  }, 6000);
+
+  return function limpiar() {
+    if (detenerInfo) detenerInfo();
+    if (detenerArticulos) detenerArticulos();
+    clearTimeout(temporizadorSinAcceso);
+    vaciarRanura("principal");
+  };
+}

@@ -31,11 +31,51 @@
         "articulos": {
           ".write": "auth != null && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists()",
           "$articuloId": {
-            ".validate": "!newData.exists() || (newData.child('nombre').isString() && newData.child('nombre').val().length > 0 && newData.child('nombre').val().length <= 120)"
+            ".validate": "!newData.exists() || newData.hasChildren(['nombre', 'categoria', 'comprado'])",
+            "nombre": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
+            },
+            "cantidad": {
+              ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 9999"
+            },
+            "unidad": {
+              ".validate": "newData.isString() && newData.val().length <= 20"
+            },
+            "categoria": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40"
+            },
+            "precio": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() < 10000000"
+            },
+            "notas": {
+              ".validate": "newData.isString() && newData.val().length <= 200"
+            },
+            "comprado": {
+              ".validate": "newData.isBoolean()"
+            },
+            "compradoPor": {
+              ".validate": "newData.isString() && newData.val().length <= 128"
+            },
+            "agregadoPor": {
+              ".validate": "newData.isString() && newData.val().length <= 128"
+            },
+            "creado": {
+              ".validate": "newData.isNumber()"
+            },
+            "plantillaId": {
+              ".validate": "newData.isString() && newData.val().length <= 40"
+            },
+            "$otro": {
+              ".validate": false
+            }
           }
         },
-        "catalogo": { ".write": "auth != null && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists()" },
-        "plantillas": { ".write": "auth != null && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists()" }
+        "catalogo": {
+          ".write": "auth != null && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists()"
+        },
+        "plantillas": {
+          ".write": "auth != null && root.child('listas/' + $listaId + '/miembros/' + auth.uid).exists()"
+        }
       }
     },
     "invitaciones": {

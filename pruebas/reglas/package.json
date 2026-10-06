@@ -1,0 +1,13 @@
+{
+  "name": "pruebas-reglas-listadecompras",
+  "private": true,
+  "description": "Pruebas de database.rules.json contra el Emulador de Firebase. Ver pruebas/README.md.",
+  "scripts": {
+    "test": "node correr.js"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.0.0",
+    "firebase-tools": "^15.32.1"
+  }
+}

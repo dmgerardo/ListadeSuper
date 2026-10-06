@@ -10,6 +10,7 @@
       ".claude/**",
       "scripts/**",
       "docs/**",
+      "pruebas/**",
       "*.md",
       "database.rules.json",
       "node_modules/**"

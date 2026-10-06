@@ -107,8 +107,14 @@ function contenedorToasts() {
 }
 
 // mostrarToast(texto, opciones): opciones.accion = { etiqueta, alActivar } para Deshacer.
+// Solo hay UN aviso a la vez: el nuevo reemplaza al anterior (al agregar varias cosas
+// seguidas, apilarlos tapaba la lista; el Deshacer que vale es el de la última acción).
 function mostrarToast(texto, opciones) {
   opciones = opciones || {};
+  Array.prototype.forEach.call(contenedorToasts().querySelectorAll(".toast"), function (previo) {
+    if (previo._quitar) previo._quitar();
+    else previo.remove();
+  });
   var toast = document.createElement("div");
   toast.className = "toast";
   toast.innerHTML = "<span>" + esc(texto) + "</span>";
@@ -129,6 +135,7 @@ function mostrarToast(texto, opciones) {
     clearTimeout(temporizador);
     toast.remove();
   }
+  toast._quitar = quitar;
   return { quitar: quitar };
 }
 
@@ -171,14 +178,12 @@ function montarPestanas(html) {
   ranura.innerHTML = html;
   if (ranura.dataset.escuchando) return;
   ranura.dataset.escuchando = "1";
-  var avisoPrevio = null;
   ranura.addEventListener("click", function (ev) {
     var pestana = ev.target.closest(".item-barra");
     if (!pestana) return;
     if (pestana.getAttribute("aria-disabled") === "true") {
       ev.preventDefault();
-      if (avisoPrevio) avisoPrevio.quitar(); // tocar varias veces no apila avisos
-      avisoPrevio = mostrarToast((pestana.dataset.nombre || "Esta sección") + " llega en una próxima versión");
+      mostrarToast((pestana.dataset.nombre || "Esta sección") + " llega en una próxima versión");
     } else if (pestana.getAttribute("aria-current") === "page") {
       ev.preventDefault();
       window.scrollTo({ top: 0, behavior: "smooth" });

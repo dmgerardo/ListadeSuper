@@ -6,31 +6,37 @@
 > de verdad técnica (esa es `AGENTS.md`), pero sigue teniendo el detalle completo de cada
 > fase y el modelo de datos.
 
-## Estado actual: Fase 0 y Fase 1 — CERRADAS Y VERIFICADAS (2026-10-06)
+## Estado actual: Fase 2 (artículos) — CONSTRUIDA Y PROBADA EN LOCAL (2026-10-06)
 
-- Sitio desplegado y funcionando: **https://pilo-compras.web.app**
-- Proyecto de Firebase: `pilo-compras` (Authentication → Google habilitado, Realtime
-  Database en `us-central1`, reglas publicadas).
-- **Login con Google probado por el usuario en el sitio real — funciona.** (No se probó
-  específicamente en iPhone/Safari/PWA instalada; si alguien lo prueba ahí, documentarlo
-  aquí.)
-- Deploy automático (`.github/workflows/firebase-hosting-merge.yml`) corriendo en verde en
-  cada push a `main` (Hosting + reglas de Realtime Database).
-- Secreto de GitHub `FIREBASE_SERVICE_ACCOUNT_LISTADESUPER` configurado.
-- `js/firebase-config.js` tiene el `firebaseConfig` real completo.
+- Sitio: **https://pilo-compras.web.app** (proyecto Firebase `pilo-compras`, RTDB `us-central1`).
+  Deploy automático en cada push a `main` (Hosting + reglas).
+- Fase 0 y 1 cerradas (login con Google probado por el usuario en el sitio real).
+- Fase 2 en `main` (v10). Probado: lógica en Node (10 pruebas), reglas con el Emulador de
+  Firebase (15 casos), flujo completo con Playwright + Firebase simulado + CSP real en 390 px
+  (claro/oscuro), 320 px y 1280 px. **Falta que el usuario lo pruebe en el sitio real** (esta
+  sesión en la nube no puede abrir `pilo-compras.web.app`: la política de red lo bloquea).
 
-## Qué incluye el código ahora mismo
+## Cómo usa la app el usuario (define el diseño de la Fase 2)
 
-- Esqueleto (Fase 0): `css/estilos.css`, `js/tema.js`, `js/iconos.js`,
-  `js/render-utils.js`, `js/db.js`, `js/catalogo-categorias.js`, `manifest.json`, `sw.js`,
-  íconos placeholder, hook de versión, workflow de deploy.
-- Login + perfil (`js/auth.js`) y "Mis listas" (`js/vista-listas.js`): crear, abrir,
-  renombrar. Arranque de cada página en `js/pagina-inicio.js` / `js/pagina-lista.js` (no
-  inline — ver bitácora de errores en AGENTS.md §6, importante leerla).
-- `lista.html`: solo confirma que la lista existe y que el usuario tiene acceso; **los
-  artículos todavía no existen** — eso es la Fase 2.
-- `database.rules.json`: reglas de `PROYECTO_INICIAL.md` §5, ya publicadas y en uso real,
-  pero **nunca probadas con el Emulador de Firebase** (ver pendientes abajo).
+Viene de una nota de Notas del iPhone (copia en `pruebas/nota-ejemplo.txt`, 171 artículos en
+14 secciones). La lista es fija y se reutiliza: **marcado = ya lo tengo / no hace falta;
+desmarcado = por comprar**. En casa desmarca lo que falta ("Toda la lista"); en la tienda
+marca lo que va tomando ("Por comprar", la vista por defecto; lo marcado desaparece con
+Deshacer). Por eso no hay sección "En el carrito".
+
+## Qué incluye la Fase 2
+
+- `js/logica-articulos.js` (puro) + `js/vista-articulos.js` (pantalla) + reglas de
+  `articulos` validadas campo por campo (`database.rules.json`).
+- Campo rápido: busca mientras escribes (en toda la lista); Enter/"+" agrega o, si ya existe,
+  lo pone por comprar (no duplica); entiende "2 kg tomate"; vacío + "+" abre el formulario.
+- Formulario agregar/editar (nombre, cantidad, unidad, pasillo, precio unitario con coma
+  decimal, notas), eliminar con Deshacer, Guardar/Descartar al cerrar con cambios.
+- Importar desde una nota: vista previa (cuántos por pasillo, renglones ignorados), UNA
+  escritura multi-ruta, todo entra marcado, reimportar no duplica. Deshacer.
+- "Marcar todo como comprado" (una escritura) con Deshacer. Total estimado de lo pendiente
+  con precio, y cuántos pendientes no tienen precio.
+- Barra inferior en `lista.html` sin "+" aparte (no cabía en 375 px); un solo toast a la vez.
 
 ## Bugs reales encontrados y corregidos esta sesión (contexto útil, no repetir)
 
@@ -48,27 +54,16 @@ estático local — la CSP y las cabeceras de caché solo existen en el deploy r
 
 ## Pendiente real (no inventar que ya se hizo)
 
-- **`node --check`**: ya corre (Node 22 disponible en la sesión en la nube) y pasa. Pruebas
-  de lógica pura en Node: todavía no existen.
-- **`database.rules.json` nunca se probó con el Emulador de Firebase ni el Rules
-  Playground** — las reglas están en producción protegiendo datos reales sin esa
-  verificación. Alta prioridad antes de construir Fase 4 (invitaciones/miembros), que es
-  donde las reglas son más complejas.
-- **Playwright**: corrió solo en local con Firebase simulado (mock) para validar la barra
-  inferior; falta una prueba contra el sitio desplegado.
+- **Probar la Fase 2 en el sitio real** (el usuario): importar su nota, desmarcar en casa,
+  marcar en la tienda, en iPhone (Safari y PWA instalada) y en Chrome de escritorio.
+- Reglas de **invitaciones/miembros** sin casos en el emulador (llegan con la Fase 4).
 - **Login en iPhone real** (Safari y PWA instalada): no probado.
-- Versión del SDK compat de Firebase (`10.14.1`): no se verificó contra la más reciente
-  disponible.
-- Íconos de `icons/*.png`: son un placeholder generado por script (carrito simple), no un
-  diseño final.
-
-## Cambio de UI (2026-10-06): barra inferior flotante
-
-Por petición del usuario, todos los controles globales (ayuda, +, sesión, versión y estado
-de conexión) se movieron a una barra inferior flotante tipo Instagram / iOS (ver invariante
-en `AGENTS.md` §2). La sesión ahora se cierra desde la foto del usuario → hoja "Mi cuenta"
-→ "Cerrar sesión". En `lista.html` las pestañas (Lista, Favoritos, Plantillas, Miembros)
-viven en la misma píldora; "Mis listas" quedó solo como enlace arriba del título.
+- **SDK de Firebase**: la app usa `10.14.1`; la más reciente es `12.19.0` (npm, 2026-10-06).
+  Actualizar es un cambio aparte, con pruebas.
+- **Contraste de `.btn`** en modo claro: 3.42:1 (texto `#fff8ee` sobre `#c67139`), por debajo
+  de 4.5:1. Preguntar al usuario si se oscurece el fondo del botón.
+- Reordenar pasillos por lista (`info.ordenCategorias` ya existe, falta la pantalla).
+- Íconos de `icons/*.png`: placeholder.
 
 ## Decisiones ya tomadas con el usuario (no volver a preguntar)
 
@@ -82,17 +77,15 @@ viven en la misma píldora; "Mis listas" quedó solo como enlace arriba del tít
   mergea a `main` directamente** (sin esperar aprobación de PR) — así se trabajó a partir
   de la Fase 1. Seguir así salvo que el usuario diga lo contrario.
 
-## Decisiones abiertas para la Fase 2 (preguntar cuando toque)
-
-- Lista de categorías/pasillos por defecto y su orden: hay un placeholder razonable en
-  `js/catalogo-categorias.js` (frutas y verduras, panadería, lácteos, carnes y pescados,
-  abarrotes, enlatados, bebidas, limpieza, cuidado personal, bebés, mascotas, farmacia,
-  otros) — confirmar con el usuario o ajustar antes de construir la vista de artículos.
-- Unidades permitidas: placeholder en el mismo archivo (`UNIDADES_DEFECTO`).
+- Fase 2 (2026-10-06): categorías = las 14 de su nota, en su orden ("Especiales" es el
+  cajón, sin "Otros"); unidades = pieza, kg, g, l, ml, paquete, caja, bolsa, lata, botella,
+  docena; importar entra todo marcado; vista por defecto "Por comprar" (se recuerda por
+  dispositivo).
 
 ## Siguiente paso sugerido
 
-Fase 2 (ver tabla de fases en `PROYECTO_INICIAL.md` §10): artículos — agregar rápido,
-cantidad/unidad/categoría/precio, agrupación por pasillo, marcar comprado, quitar, totales,
-Deshacer. Construye sobre `lista.html` / `js/pagina-lista.js`, que hoy solo muestra un
-mensaje de "próximamente".
+1. Que el usuario pruebe la Fase 2 en el sitio real y reporte.
+2. Fase 3 (ver `PROYECTO_INICIAL.md` §10): favoritos/frecuentes + autocompletado + plantillas.
+   Ojo: con el modelo de uso del usuario (la lista ES su catálogo fijo) puede que "favoritos"
+   y "plantillas" pesen menos de lo que pensaba el documento original — **preguntarle antes
+   de construir** qué le falta realmente.
