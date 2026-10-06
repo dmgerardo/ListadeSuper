@@ -164,8 +164,26 @@ function vaciarRanura(nombre) {
 }
 
 // montarPestanas(html): html de los <a class="item-barra"> de navegación de la pantalla.
+// Una pestaña con aria-disabled="true" y data-nombre="..." avisa que llega pronto (en vez de
+// no hacer nada); la pestaña activa (aria-current="page") solo sube al inicio, sin recargar.
 function montarPestanas(html) {
-  ranuraBarra("pestanas").innerHTML = html;
+  var ranura = ranuraBarra("pestanas");
+  ranura.innerHTML = html;
+  if (ranura.dataset.escuchando) return;
+  ranura.dataset.escuchando = "1";
+  var avisoPrevio = null;
+  ranura.addEventListener("click", function (ev) {
+    var pestana = ev.target.closest(".item-barra");
+    if (!pestana) return;
+    if (pestana.getAttribute("aria-disabled") === "true") {
+      ev.preventDefault();
+      if (avisoPrevio) avisoPrevio.quitar(); // tocar varias veces no apila avisos
+      avisoPrevio = mostrarToast((pestana.dataset.nombre || "Esta sección") + " llega en una próxima versión");
+    } else if (pestana.getAttribute("aria-current") === "page") {
+      ev.preventDefault();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  });
 }
 
 // montarAccionPrincipal(nombreIcono, etiqueta, alActivar): el botón circular "+". Devuelve

@@ -163,7 +163,7 @@ select:focus-visible, textarea:focus-visible {
 .item-barra:hover { color: var(--color-texto); }
 .item-barra:active { transform: scale(0.92); }
 .item-barra.activo { color: var(--color-primario-oscuro); background: var(--color-borde); }
-.item-barra[aria-disabled="true"] { opacity: 0.4; cursor: default; pointer-events: none; }
+.item-barra[aria-disabled="true"] { opacity: 0.4; cursor: default; }
 .item-estado { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .punto-estado {
   width: 8px;
