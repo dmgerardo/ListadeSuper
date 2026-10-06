@@ -86,12 +86,21 @@ function ordenCategoriasEfectivo(ordenGuardado) {
   return orden;
 }
 
+// Orden alfabético en español: sin distinguir acentos ni mayúsculas, "ñ" después de "n" y
+// números por su valor ("Pan 2" antes que "Pan 10").
+var _COLADOR_NOMBRES = new Intl.Collator("es", { sensitivity: "base", numeric: true });
+
+function compararPorNombre(a, b) {
+  return _COLADOR_NOMBRES.compare(String(a.nombre).trim(), String(b.nombre).trim()) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+}
+
 // agruparArticulos(articulos, ordenGuardado, opciones) → [{ categoria, nombre, articulos }].
 // articulos: { id: articulo } tal como viene de la base. opciones.soloPendientes: solo los
-// no marcados (vista "Por comprar"). opciones.filtro: texto a buscar en el nombre (sin
-// acentos). Dentro de cada pasillo se respeta el orden de creación (las llaves push de
-// Firebase son cronológicas), así al importar una nota se conserva su orden y un artículo
-// no "salta" de lugar al marcarlo o desmarcarlo. Los pasillos vacíos no se devuelven.
+// no marcados (vista "Por comprar"). opciones.soloSinPrecio: solo los que no tienen precio
+// (editor de precios). opciones.filtro: texto a buscar en el nombre (sin acentos). Dentro de
+// cada pasillo, orden ALFABÉTICO (pedido del usuario, 2026-10-06; antes
+// era el de creación); con nombres iguales desempata la llave, así el orden es estable y un
+// artículo no "salta" de lugar al marcarlo o desmarcarlo. Los pasillos vacíos no se devuelven.
 function agruparArticulos(articulos, ordenGuardado, opciones) {
   opciones = opciones || {};
   var filtro = normalizarNombre(opciones.filtro);
@@ -102,6 +111,7 @@ function agruparArticulos(articulos, ordenGuardado, opciones) {
       var a = articulos[id];
       if (!a || typeof a !== "object" || !a.nombre) return;
       if (opciones.soloPendientes && a.comprado) return;
+      if (opciones.soloSinPrecio && typeof a.precio === "number") return;
       if (filtro && normalizarNombre(a.nombre).indexOf(filtro) === -1) return;
       var cat = categoriaValida(a.categoria);
       (porCategoria[cat] = porCategoria[cat] || []).push(Object.assign({ id: id }, a));
@@ -109,7 +119,7 @@ function agruparArticulos(articulos, ordenGuardado, opciones) {
   return ordenCategoriasEfectivo(ordenGuardado)
     .filter(function (cat) { return porCategoria[cat]; })
     .map(function (cat) {
-      return { categoria: cat, nombre: CATEGORIAS_NOMBRES[cat], articulos: porCategoria[cat] };
+      return { categoria: cat, nombre: CATEGORIAS_NOMBRES[cat], articulos: porCategoria[cat].sort(compararPorNombre) };
     });
 }
 
@@ -269,4 +279,24 @@ function etiquetaUnidad(cantidad, unidad) {
   var plural = Number(cantidad) !== 1;
   if (u === "pieza") return plural ? "pzas" : "pza";
   return plural && _PLURAL_UNIDADES[u] ? _PLURAL_UNIDADES[u] : u;
+}
+
+// cantidadParaUnidad(cantidad, unidad): la cantidad ajustada a la unidad nueva al cambiarla
+// en el editor de precios. Si no llega al paso mínimo (1 pza → g) sube a él (100 g, no 1 g);
+// si no es múltiplo del paso (0.5 kg → pieza) sube al múltiplo siguiente (1 pza).
+function cantidadParaUnidad(cantidad, unidad) {
+  var paso = pasoDeUnidad(unidad);
+  var n = Number(cantidad);
+  if (!isFinite(n) || n <= 0) n = 1;
+  var ajustada = Math.ceil(n / paso - 1e-9) * paso;
+  ajustada = Math.round(Math.max(paso, ajustada) * 100) / 100;
+  return Math.min(ajustada, 9999);
+}
+
+// contarSinPrecio(articulos) → cuántos artículos (marcados o no) no tienen precio.
+function contarSinPrecio(articulos) {
+  return Object.keys(articulos || {}).filter(function (id) {
+    var a = articulos[id];
+    return a && typeof a === "object" && a.nombre && typeof a.precio !== "number";
+  }).length;
 }

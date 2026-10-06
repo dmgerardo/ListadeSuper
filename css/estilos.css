@@ -639,7 +639,7 @@ select:focus-visible, textarea:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.acciones-lista { display: flex; justify-content: flex-end; min-height: 8px; margin: 2px 0; }
+.acciones-lista { display: flex; flex-wrap: wrap; justify-content: flex-end; column-gap: 4px; min-height: 8px; margin: 2px 0; }
 .acciones-lista .btn-texto { font-size: 14px; }
 .pista-busqueda { color: var(--color-texto-suave); font-size: 14px; margin: 8px 0; }
 
@@ -780,6 +780,59 @@ select:focus-visible, textarea:focus-visible {
   .valor-cantidad { min-width: 36px; }
   .fila-articulo.con-contador .casilla { width: 40px; }
 }
+
+/* Editor rápido de unidades y precios: nombre arriba, unidad y precio abajo. */
+.barra-editor-precios {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+.acciones-lista .pista-busqueda { flex-basis: 100%; margin: 6px 0 2px; }
+.btn-chip {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--color-borde);
+  background: var(--color-superficie);
+  color: var(--color-texto);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-chip.activo {
+  background: var(--color-tinte-primario);
+  border-color: var(--color-primario);
+  color: var(--color-primario-oscuro);
+}
+.btn-chico { min-height: 44px; padding: 8px 16px; font-size: 15px; }
+.fila-precio { flex-direction: column; align-items: stretch; gap: 6px; padding: 10px 10px 10px 14px; }
+.fila-precio .nombre-articulo { font-weight: 600; }
+.controles-precio { display: flex; align-items: center; gap: 8px; }
+.select-unidad, .campo-precio input {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-borde);
+  background: var(--color-fondo);
+  color: var(--color-texto);
+  font-size: 16px; /* evita el zoom de iOS */
+}
+.select-unidad { flex: 0 0 auto; padding: 0 10px; min-width: 104px; }
+.campo-precio { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; }
+.simbolo-moneda {
+  position: absolute;
+  left: 12px;
+  color: var(--color-texto-suave);
+  font-weight: 600;
+  pointer-events: none;
+}
+.campo-precio input { width: 100%; padding: 0 10px 0 26px; font-variant-numeric: tabular-nums; }
+.campo-precio input::placeholder { color: var(--color-texto-suave); opacity: 1; }
+.por-unidad { flex: none; color: var(--color-texto-suave); font-size: 14px; font-weight: 600; min-width: 44px; }
+.select-unidad.guardado, .campo-precio input.guardado { border-color: var(--color-primario); }
+.campo-precio input.invalido { border-color: var(--color-peligro); }
 
 /* Marcado = "ya lo tengo", no "borrado": texto suave, SIN tachar. */
 .fila-articulo.marcado .nombre-articulo,

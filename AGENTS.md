@@ -77,7 +77,7 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `js/iconos.js` | `ICONOS_LUCIDE` (SVG oficiales de `lucide-static` 1.52.0, ver cabecera), `icono()`, `iconoTexto()` |
 | `js/render-utils.js` | `esc`, `urlSegura`, `formatoMoneda`, `hoyLocalISO`, `abrirModal`, `confirmarCierreConCambios`, `mostrarToast` y la barra inferior flotante: `barraInferior`, `ranuraBarra`, `vaciarRanura`, `montarPestanas`, `montarAccionPrincipal`, `montarBotonAyuda`, `montarMenuCuenta` |
 | `js/catalogo-categorias.js` | Las 14 categorías/pasillos del usuario (confirmadas en Fase 2, orden de su nota de iPhone; "Especiales" es el cajón, no hay "Otros"), su ícono (`CATEGORIAS_ICONOS`), alias para importar y las 11 unidades |
-| `js/logica-articulos.js` | Lógica pura, probada en Node: `normalizarNombre`, `interpretarTextoRapido` ("2 kg tomate"), `ordenCategoriasEfectivo`, `agruparArticulos`, `totalesLista`, `parsearNotaImportada`, `separarRepetidos`, `buscarPorNombre`, `textoCantidad`, `pasoDeUnidad`, `siguienteCantidad`, `etiquetaUnidad` (contador −/+) |
+| `js/logica-articulos.js` | Lógica pura, probada en Node: `normalizarNombre`, `interpretarTextoRapido` ("2 kg tomate"), `ordenCategoriasEfectivo`, `agruparArticulos`, `totalesLista`, `parsearNotaImportada`, `separarRepetidos`, `buscarPorNombre`, `textoCantidad`, `pasoDeUnidad`, `siguienteCantidad`, `etiquetaUnidad` (contador −/+), `compararPorNombre` (orden alfabético), `cantidadParaUnidad`, `contarSinPrecio` (editor de precios) |
 | `js/vista-articulos.js` | Pantalla de una lista: vistas "Por comprar"/"Toda la lista", campo rápido (busca + agrega), formulario agregar/editar/eliminar, marcar todo, importar nota, totales, Deshacer |
 | `js/vista-listas.js` | Pantalla "Mis listas": crear, abrir, renombrar |
 | `js/pagina-inicio.js` | Script de arranque de `index.html` (bienvenida o "Mis listas") |
@@ -114,6 +114,14 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
   marca ni desmarca. Paso: 1 (piezas, paquetes…), 0.5 (kg, l), 100 (g, ml); nunca baja de un
   paso (las reglas exigen > 0; quitar = "Eliminar"). Unidad explícita: solo "pieza" se abrevia
   (pza/pzas). En esa vista el subtotal baja al renglón de detalle para que quepa en 320 px.
+- **Orden dentro de cada pasillo: alfabético** (`Intl.Collator("es")`: sin acentos ni
+  mayúsculas, ñ tras n, números por valor; desempate por llave). Pedido del usuario.
+- **Editor rápido de unidades y precios** ("Unidades y precios" en "Toda la lista"): por
+  renglón, selector de unidad + precio unitario; guarda campo por campo en `change` (salir del
+  campo o Enter, que pasa al siguiente); "Solo sin precio"; "Listo" lo cierra. **Mientras está
+  abierto la lista no se repinta con cada `value`** (`editorPintado`): repintar perdería el
+  foco y lo escrito. Cambiar la unidad ajusta la cantidad (`cantidadParaUnidad`: 1 pza → 100 g).
+  Leer precios de tiendas en automático se descartó (sin backend, CORS/CSP, términos de uso).
 - **Apariencia** (Sistema / Claro / Oscuro): selector en la hoja "Mi cuenta" (tocar la foto
   en la barra), no en la barra (no cabe un 8.º control en 320 px). Usa
   `establecerPreferenciaTema()` de `tema.js`; se guarda por dispositivo en `localStorage`

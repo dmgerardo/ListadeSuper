@@ -39,6 +39,12 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
   var articulos = {};
   var vista = _leerVistaGuardada();
   var filtro = "";
+  // Editor rápido de unidades y precios (dentro de "Toda la lista"). Mientras está abierto la
+  // lista NO se repinta con cada cambio de la base: perdería el foco y lo que se está
+  // escribiendo. Se repinta solo al entrar, al cambiar el filtro o "Solo sin precio".
+  var modoPrecios = false;
+  var soloSinPrecio = false;
+  var editorPintado = false;
   var detenerInfo = null;
   var detenerArticulos = null;
   var temporizadorSinAcceso = null;
@@ -149,7 +155,30 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     );
   }
 
-  function pintarGrupos(grupos) {
+  // Renglón del editor de precios: nombre arriba; unidad y precio unitario abajo (en dos
+  // líneas para que quepa en 320 px).
+  function filaPrecio(a) {
+    var unidad = a.unidad || "pieza";
+    var precio = typeof a.precio === "number" ? String(a.precio) : "";
+    return (
+      '<li class="fila-articulo fila-precio' + (a.comprado ? " marcado" : "") + '">' +
+      '<span class="nombre-articulo">' + esc(a.nombre) + "</span>" +
+      '<div class="controles-precio">' +
+      '<select class="select-unidad" data-unidad="' + esc(a.id) + '" aria-label="' + esc("Unidad de " + a.nombre) + '">' +
+      opcionesUnidad(unidad) + "</select>" +
+      '<label class="campo-precio">' +
+      '<span class="simbolo-moneda" aria-hidden="true">$</span>' +
+      '<input type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" data-precio="' + esc(a.id) + '" ' +
+      'value="' + esc(precio) + '" placeholder="Precio" aria-label="' + esc("Precio por " + etiquetaUnidad(1, unidad) + " de " + a.nombre) + '">' +
+      "</label>" +
+      '<span class="por-unidad" data-por-unidad>/ ' + esc(etiquetaUnidad(1, unidad)) + "</span>" +
+      "</div>" +
+      "</li>"
+    );
+  }
+
+  function pintarGrupos(grupos, fila) {
+    fila = fila || filaArticulo;
     return grupos
       .map(function (g) {
         return (
@@ -157,7 +186,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
           '<h2 class="titulo-pasillo">' +
           '<span class="baldosa-pasillo pasillo-' + esc(g.categoria) + '" aria-hidden="true">' + icono(CATEGORIAS_ICONOS[g.categoria], 18) + "</span>" +
           esc(g.nombre) + ' <span class="contador">' + g.articulos.length + "</span></h2>" +
-          '<ul class="lista-articulos">' + g.articulos.map(filaArticulo).join("") + "</ul>" +
+          '<ul class="lista-articulos">' + g.articulos.map(fila).join("") + "</ul>" +
           "</section>"
         );
       })
@@ -222,6 +251,11 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         b.classList.toggle("activa", activa);
       });
 
+      if (modoPrecios && t.pendientes + t.marcados > 0) {
+        pintarEditorPrecios();
+        return;
+      }
+
       // Acciones según la vista (se ocultan mientras se busca, para no distraer).
       var acciones = "";
       if (!filtro) {
@@ -229,7 +263,10 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
           acciones = '<button type="button" class="btn-texto enlace-con-icono" data-accion="marcar-todo">' +
             icono("check-check", 18) + "<span>Marcar todo como comprado</span></button>";
         } else if (vista === "todo") {
-          acciones = '<button type="button" class="btn-texto enlace-con-icono" data-accion="importar">' +
+          acciones =
+            '<button type="button" class="btn-texto enlace-con-icono" data-accion="editar-precios">' +
+            icono("pencil", 18) + "<span>Unidades y precios</span></button>" +
+            '<button type="button" class="btn-texto enlace-con-icono" data-accion="importar">' +
             icono("clipboard-list", 18) + "<span>Importar desde una nota</span></button>";
         }
       }
@@ -277,6 +314,31 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     });
   }
 
+  function pintarEditorPrecios() {
+    var faltan = contarSinPrecio(articulos);
+    zonaAcciones.innerHTML =
+      '<div class="barra-editor-precios">' +
+      '<button type="button" class="btn-chip' + (soloSinPrecio ? " activo" : "") + '" data-accion="solo-sin-precio" aria-pressed="' + (soloSinPrecio ? "true" : "false") + '">' +
+      "Solo sin precio · " + faltan + "</button>" +
+      '<button type="button" class="btn btn-chico" data-accion="salir-precios">' + icono("check", 18) + "<span>Listo</span></button>" +
+      "</div>" +
+      '<p class="pista-busqueda">Precio por unidad. Se guarda solo al salir de cada campo; Enter pasa al siguiente.</p>';
+    if (editorPintado) return;
+    var grupos = agruparArticulos(articulos, info.ordenCategorias, { filtro: filtro, soloSinPrecio: soloSinPrecio });
+    if (filtro) indiceEl.innerHTML = "";
+    else pintarIndice(grupos);
+    zonaArticulos.innerHTML = grupos.length
+      ? pintarGrupos(grupos, filaPrecio)
+      : '<div class="tarjeta tarjeta-vacia"><span class="circulo-vacio" aria-hidden="true">' + icono("check", 28) + "</span>" +
+        '<p class="titulo-vacio">' + (filtro ? "Sin coincidencias" : "Todos tienen precio") + "</p></div>";
+    editorPintado = true;
+  }
+
+  function repintarEditor() {
+    editorPintado = false;
+    pintar();
+  }
+
   // ===== Escrituras =====
 
   function fallo(mensaje) {
@@ -318,6 +380,55 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     var cambios = { cantidad: nueva };
     if (!a.unidad) cambios.unidad = "pieza";
     actualizar(refArticulo(id), cambios).catch(fallo("No se pudo cambiar la cantidad"));
+  }
+
+  // Marca breve de "guardado" en el campo (sin toast: serían cientos de avisos).
+  function senalarGuardado(el) {
+    el.classList.remove("invalido");
+    el.removeAttribute("aria-invalid");
+    el.classList.add("guardado");
+    setTimeout(function () { el.classList.remove("guardado"); }, 1200);
+  }
+
+  // Editor de precios: precio unitario, campo por campo. Vacío = sin precio.
+  function guardarPrecio(input) {
+    var id = input.dataset.precio;
+    var a = articulos[id];
+    if (!a) return;
+    var precio = _numeroDeCampo(input.value);
+    if (precio !== null && (!(precio >= 0) || precio >= 10000000)) {
+      input.classList.add("invalido");
+      input.setAttribute("aria-invalid", "true");
+      mostrarToast("Precio no válido: escribe solo el número, p. ej. 28.50");
+      return;
+    }
+    if (precio !== null) precio = Math.round(precio * 100) / 100;
+    var anterior = typeof a.precio === "number" ? a.precio : null;
+    input.value = precio === null ? "" : String(precio); // "28,5" → "28.5"
+    if (precio === anterior) {
+      input.classList.remove("invalido");
+      input.removeAttribute("aria-invalid");
+      return;
+    }
+    actualizar(refArticulo(id), { precio: precio })
+      .then(function () { senalarGuardado(input); })
+      .catch(fallo("No se pudo guardar el precio"));
+  }
+
+  // Cambiar la unidad ajusta la cantidad si hace falta (1 pza → 100 g) y el "/ unidad".
+  function guardarUnidad(select) {
+    var id = select.dataset.unidad;
+    var a = articulos[id];
+    if (!a) return;
+    var unidad = select.value;
+    if (unidad === (a.unidad || "pieza")) return;
+    var fila = select.closest(".fila-precio");
+    var etiqueta = etiquetaUnidad(1, unidad);
+    fila.querySelector("[data-por-unidad]").textContent = "/ " + etiqueta;
+    fila.querySelector("[data-precio]").setAttribute("aria-label", "Precio por " + etiqueta + " de " + a.nombre);
+    actualizar(refArticulo(id), { unidad: unidad, cantidad: cantidadParaUnidad(a.cantidad, unidad) })
+      .then(function () { senalarGuardado(select); })
+      .catch(fallo("No se pudo guardar la unidad"));
   }
 
   function crearArticulo(datos) {
@@ -671,6 +782,8 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
 
   function cambiarVista(nueva) {
     vista = nueva;
+    if (nueva !== "todo") modoPrecios = false;
+    editorPintado = false;
     _guardarVista(nueva);
     pintar();
   }
@@ -683,6 +796,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
 
   campoRapido.addEventListener("input", function () {
     filtro = campoRapido.value.trim();
+    editorPintado = false;
     pintar();
   });
 
@@ -723,10 +837,36 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     if (accion) {
       if (accion.dataset.accion === "marcar-todo") marcarTodo();
       if (accion.dataset.accion === "importar") abrirImportar();
+      if (accion.dataset.accion === "editar-precios") {
+        modoPrecios = true;
+        repintarEditor();
+      }
+      if (accion.dataset.accion === "salir-precios") {
+        modoPrecios = false;
+        repintarEditor();
+      }
+      if (accion.dataset.accion === "solo-sin-precio") {
+        soloSinPrecio = !soloSinPrecio;
+        repintarEditor();
+      }
       return;
     }
     var irVista = ev.target.closest("[data-ir-vista]");
     if (irVista) cambiarVista(irVista.dataset.irVista);
+  });
+
+  contenedor.addEventListener("change", function (ev) {
+    if (ev.target.matches("[data-precio]")) guardarPrecio(ev.target);
+    else if (ev.target.matches("[data-unidad]")) guardarUnidad(ev.target);
+  });
+  // Enter en un precio = pasar al siguiente (el cambio de foco dispara "change" y guarda).
+  contenedor.addEventListener("keydown", function (ev) {
+    if (ev.key !== "Enter" || !ev.target.matches("[data-precio]")) return;
+    ev.preventDefault();
+    var campos = Array.prototype.slice.call(contenedor.querySelectorAll("[data-precio]"));
+    var siguiente = campos[campos.indexOf(ev.target) + 1];
+    if (siguiente) siguiente.focus();
+    else ev.target.blur();
   });
 
   montarBotonAyuda(
@@ -740,6 +880,9 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       "Con el campo vacío, <strong>+</strong> abre el formulario completo.</p>" +
       "<p>En <em>Toda la lista</em>, los botones <strong>−</strong> y <strong>+</strong> de cada artículo cambian " +
       "la cantidad (de 1 en 1; kg y litros de medio en medio; gramos y ml de 100 en 100).</p>" +
+      "<p><strong>Unidades y precios</strong> (en <em>Toda la lista</em>): pon la unidad y el precio por unidad " +
+      "de todos tus artículos de corrido; usa <em>Solo sin precio</em> para ver lo que falta. Puedes tener abierta " +
+      "la página de tu tienda en otra pestaña para copiar los precios.</p>" +
       "<p>Toca el nombre de un artículo para cambiar cantidad, unidad, pasillo, precio o notas, o para eliminarlo.</p>"
   );
 

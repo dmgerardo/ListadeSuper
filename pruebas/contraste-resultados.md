@@ -14,6 +14,10 @@ evalúan compuestos sobre la base indicada.
 | claro | `--color-texto` | `--color-segmento-activo` | #15211A / #FFFFFF | 16.61:1 | 4.5:1 | OK | Opción elegida del selector (vista / apariencia) |
 | claro | `--color-texto` | `--color-segmento` | #15211A / #E8ECE6 | 13.90:1 | 4.5:1 | OK | Contador, <code> y botón (−) de cantidad sobre el riel gris |
 | claro | `--color-texto-suave` | `--color-superficie` | #56655B / #FFFFFF | 6.16:1 | 4.5:1 | OK | Unidad del contador de cantidad (pza, kg…) en la fila |
+| claro | `--color-texto-suave` | `--color-fondo` | #56655B / #F3F5F0 | 5.61:1 | 4.5:1 | OK | '$' y placeholder del campo de precio (fondo del campo) |
+| claro | `--color-primario-oscuro` | `--color-tinte-primario` | #0F5C2B / #E4F2E7 | 7.02:1 | 4.5:1 | OK | Chip 'Solo sin precio' activo |
+| claro | `--color-primario` | `--color-fondo` | #17803D / #F3F5F0 | 4.56:1 | 3:1 | OK | Borde de campo guardado (componente) |
+| claro | `--color-peligro` | `--color-fondo` | #B42318 / #F3F5F0 | 5.99:1 | 3:1 | OK | Borde de precio inválido (componente) |
 | claro | `--color-primario-oscuro` | `--color-fondo` | #0F5C2B / #F3F5F0 | 7.40:1 | 4.5:1 | OK | Enlaces y acciones de texto sobre el fondo |
 | claro | `--color-primario-oscuro` | `--color-superficie` | #0F5C2B / #FFFFFF | 8.12:1 | 4.5:1 | OK | Acciones de texto en tarjetas |
 | claro | `--color-primario-oscuro` | `--color-tinte-primario` | #0F5C2B / #E4F2E7 | 7.02:1 | 4.5:1 | OK | Pestaña activa de la barra / ícono del estado vacío |
@@ -54,6 +58,10 @@ evalúan compuestos sobre la base indicada.
 | oscuro | `--color-texto` | `--color-segmento-activo` | #E8EFE9 / #34443B | 8.82:1 | 4.5:1 | OK | Opción elegida del selector (vista / apariencia) |
 | oscuro | `--color-texto` | `--color-segmento` | #E8EFE9 / #222C26 | 12.33:1 | 4.5:1 | OK | Contador, <code> y botón (−) de cantidad sobre el riel gris |
 | oscuro | `--color-texto-suave` | `--color-superficie` | #9DB0A3 / #1B231E | 7.02:1 | 4.5:1 | OK | Unidad del contador de cantidad (pza, kg…) en la fila |
+| oscuro | `--color-texto-suave` | `--color-fondo` | #9DB0A3 / #121815 | 7.86:1 | 4.5:1 | OK | '$' y placeholder del campo de precio (fondo del campo) |
+| oscuro | `--color-primario-oscuro` | `--color-tinte-primario` | #7FD9A0 / #1D3B29 | 7.21:1 | 4.5:1 | OK | Chip 'Solo sin precio' activo |
+| oscuro | `--color-primario` | `--color-fondo` | #3DBE6E / #121815 | 7.53:1 | 3:1 | OK | Borde de campo guardado (componente) |
+| oscuro | `--color-peligro` | `--color-fondo` | #F1907C / #121815 | 7.73:1 | 3:1 | OK | Borde de precio inválido (componente) |
 | oscuro | `--color-primario-oscuro` | `--color-fondo` | #7FD9A0 / #121815 | 10.57:1 | 4.5:1 | OK | Enlaces y acciones de texto sobre el fondo |
 | oscuro | `--color-primario-oscuro` | `--color-superficie` | #7FD9A0 / #1B231E | 9.45:1 | 4.5:1 | OK | Acciones de texto en tarjetas |
 | oscuro | `--color-primario-oscuro` | `--color-tinte-primario` | #7FD9A0 / #1D3B29 | 7.21:1 | 4.5:1 | OK | Pestaña activa de la barra / ícono del estado vacío |

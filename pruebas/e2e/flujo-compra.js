@@ -94,8 +94,8 @@ async function flujo(browser, ancho, modo) {
   assert.deepEqual(pasillos.slice(0, 4), ["Especiales", "Frutas de temporada", "Frutas", "Verduras"]);
   assert.equal(pasillos.length, 14);
   const frutas = await page.$$eval(".grupo-pasillo:nth-child(3) .nombre-articulo", (n) => n.slice(0, 3).map((x) => x.textContent));
-  assert.deepEqual(frutas, ["Plátanos", "Mangos", "Manzanas gala unas 8"]);
-  paso("importación: 1 escritura, 171 artículos, 14 pasillos en orden");
+  assert.deepEqual(frutas, ["Fresas", "Kiwi", "Limones"]); // alfabético dentro del pasillo
+  paso("importación: 1 escritura, 171 artículos, 14 pasillos en orden, alfabético adentro");
 
   // 3. "Por comprar" vacía.
   await page.click('[data-vista="pendientes"]');
@@ -143,7 +143,7 @@ async function flujo(browser, ancho, modo) {
   // 6. "Por comprar": solo los 4, por pasillo.
   await page.click('[data-vista="pendientes"]');
   await pausa(page);
-  assert.deepEqual(await nombresVisibles(page), ["tomate", "Plátanos", "Mangos", "Leche Entera 2 Santa Clara"]);
+  assert.deepEqual(await nombresVisibles(page), ["tomate", "Mangos", "Plátanos", "Leche Entera 2 Santa Clara"]);
   assert.match(await page.textContent(".fila-articulo:first-child .detalle-articulo"), /2 kg/);
 
   // 7. Editar tomate: pasillo Verduras y precio 25,50 (coma decimal) → subtotal y total.
@@ -170,7 +170,7 @@ async function flujo(browser, ancho, modo) {
   assert.equal(await page.textContent("[data-resumen] .resumen-monto"), "$51.00");
   assert.equal(await page.textContent("[data-resumen] .resumen-nota"), "3 sin precio");
   assert.equal(await page.getAttribute("[data-resumen]", "aria-live"), "polite");
-  assert.deepEqual(await nombresVisibles(page), ["Plátanos", "Mangos", "tomate", "Leche Entera 2 Santa Clara"]);
+  assert.deepEqual(await nombresVisibles(page), ["Mangos", "Plátanos", "tomate", "Leche Entera 2 Santa Clara"]);
   paso("edición: pasillo + precio con coma; total $51.00 (2 kg × $25.50)");
 
   // 7b. Contador (−)/(+) en "Toda la lista": cambia SOLO la cantidad, con paso por unidad.
@@ -212,6 +212,61 @@ async function flujo(browser, ancho, modo) {
   await pausa(page);
   assert.equal(await page.$$eval(".control-cantidad", (c) => c.length), 0, "en Por comprar no hay contador");
   paso("contador (−)/(+): pzas de 1 en 1, kg de 0.5, mínimo, sin tocar 'marcado'");
+
+  // 7c. Editor rápido de unidades y precios.
+  await page.click('[data-vista="todo"]');
+  await pausa(page);
+  await page.click("[data-accion=editar-precios]");
+  await pausa(page);
+  assert.equal(await page.$$eval("[data-precio]", (c) => c.length), 172, "un campo de precio por artículo");
+  assert.match(await page.textContent("[data-accion=solo-sin-precio]"), /Solo sin precio · 171/); // tomate ya tiene precio
+  await page.click("[data-accion=solo-sin-precio]");
+  await pausa(page);
+  assert.equal(await page.$$eval("[data-precio]", (c) => c.length), 171, "Solo sin precio oculta los que ya tienen");
+  const campo = (nombre) => `[aria-label^="Precio por "][aria-label$=" de ${nombre}"]`;
+  await page.fill(campo("Fresas"), "45,90");
+  await page.press(campo("Fresas"), "Enter");
+  await pausa(page, 400);
+  assert.equal((await art("Fresas")).precio, 45.9, "precio con coma decimal guardado");
+  assert.ok(await page.evaluate(() => document.activeElement.matches('[aria-label$=" de Kiwi"]')), "Enter pasa al siguiente precio (Kiwi)");
+  // Escribir en el siguiente mientras llega el cambio de la base: no se repinta, no se pierde.
+  await page.keyboard.type("12");
+  await pausa(page, 400);
+  assert.equal(await page.inputValue(campo("Kiwi")), "12", "lo escrito sigue ahí tras el guardado anterior");
+  assert.ok(await page.evaluate(() => document.activeElement.matches('[aria-label$=" de Kiwi"]')), "el foco no se pierde");
+  assert.ok(await page.isVisible(campo("Fresas")), "Fresas sigue visible aunque ya tiene precio (no salta)");
+  await page.press(campo("Kiwi"), "Tab"); // salir del campo (como tocar otro control) guarda
+  await pausa(page, 300);
+  assert.match(await page.textContent("[data-accion=solo-sin-precio]"), /· 169/);
+  // Unidad: Fresas → kg (1 kg); Kiwi → g (1 pza → 100 g, no 1 g).
+  await page.selectOption('[aria-label="Unidad de Fresas"]', "kg");
+  await page.selectOption('[aria-label="Unidad de Kiwi"]', "g");
+  await pausa(page, 400);
+  assert.deepEqual([(await art("Fresas")).unidad, (await art("Fresas")).cantidad], ["kg", 1]);
+  assert.deepEqual([(await art("Kiwi")).unidad, (await art("Kiwi")).cantidad, (await art("Kiwi")).precio], ["g", 100, 12]);
+  assert.equal(await page.textContent('.fila-precio:has([aria-label="Unidad de Kiwi"]) [data-por-unidad]'), "/ g");
+  // Precio inválido: no se guarda y se avisa; vacío = quitar el precio.
+  await page.fill(campo("Limones"), "abc");
+  await page.press(campo("Limones"), "Tab");
+  await pausa(page);
+  assert.equal((await art("Limones")).precio, undefined);
+  assert.equal(await page.getAttribute(campo("Limones"), "aria-invalid"), "true");
+  assert.match(await ultimoToast(page), /Precio no válido/);
+  await page.fill(campo("Limones"), "");
+  await page.fill(campo("Fresas"), "");
+  await page.press(campo("Fresas"), "Tab");
+  await pausa(page, 400);
+  assert.equal((await art("Fresas")).precio, undefined, "vaciar el campo quita el precio");
+  const fueraEditor = await page.$$eval(".controles-precio", (cs) => cs.filter((c) => c.getBoundingClientRect().right > window.innerWidth + 0.5).length);
+  assert.equal(fueraEditor, 0, "los controles del editor caben en pantalla");
+  if (ancho === 320 || ancho === 390) await page.screenshot({ path: path.join(CAPTURAS, "editor-precios-" + ancho + "-" + modo + ".png") });
+  await page.click("[data-accion=salir-precios]");
+  await pausa(page);
+  assert.equal(await page.$$eval("[data-precio]", (c) => c.length), 0, "Listo cierra el editor");
+  assert.equal(await page.$$eval(".control-cantidad", (c) => c.length), 172, "y vuelve Toda la lista normal");
+  await page.click('[data-vista="pendientes"]');
+  await pausa(page);
+  paso("editor de precios: coma decimal, Enter al siguiente, foco estable, unidad ajusta cantidad, inválido/vacío");
 
   // 8. Marcar en la tienda: desaparece; Deshacer lo regresa.
   await page.click('[aria-label="Marcar Plátanos como comprado"]');

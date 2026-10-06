@@ -77,7 +77,7 @@ test("agruparArticulos: orden de pasillos, orden de creación, filtros", () => {
   };
   const todo = plano(L.agruparArticulos(arts, ["limpieza"]));
   assert.deepEqual(todo.map((g) => g.categoria), ["limpieza", "especiales", "frutas"]);
-  assert.deepEqual(todo[2].articulos.map((a) => a.id), ["-a", "-b"]); // orden de llave
+  assert.deepEqual(todo[2].articulos.map((a) => a.nombre), ["Peras", "Plátanos"]); // alfabético, no de llave
   assert.equal(todo[1].articulos[0].nombre, "Raro"); // categoría desconocida → Especiales
   const pendientes = plano(L.agruparArticulos(arts, [], { soloPendientes: true }));
   assert.equal(pendientes.find((g) => g.categoria === "frutas").articulos.length, 1);
@@ -202,4 +202,37 @@ test("etiquetaUnidad: explícita y en plural (solo pieza se abrevia)", () => {
   assert.equal(L.etiquetaUnidad(1.5, "kg"), "kg");
   assert.equal(L.etiquetaUnidad(2, "docena"), "docenas");
   assert.equal(L.etiquetaUnidad(1, "botella"), "botella");
+});
+
+test("agruparArticulos: orden alfabético en español dentro de cada pasillo", () => {
+  const nombres = ["zanahoria", "Ñame", "Nopales", "Ácido fólico", "Apio", "pan 10", "Pan 2", "nuez", "Elote", "apio"];
+  const arts = {};
+  nombres.forEach((n, i) => (arts["-" + String(9 - i)] = { nombre: n, categoria: "verduras", comprado: false }));
+  const r = plano(L.agruparArticulos(arts, []))[0].articulos.map((a) => a.nombre);
+  // Acentos y mayúsculas no cuentan; ñ va después de n; números por valor; "Apio"/"apio"
+  // (mismo nombre) desempatan por llave y salen siempre igual.
+  assert.deepEqual(r, ["Ácido fólico", "apio", "Apio", "Elote", "Nopales", "nuez", "Ñame", "Pan 2", "pan 10", "zanahoria"]);
+});
+
+test("editor de precios: soloSinPrecio, cantidadParaUnidad y contarSinPrecio", () => {
+  const arts = {
+    "-1": { nombre: "Leche", categoria: "refris", comprado: true, precio: 28.5 },
+    "-2": { nombre: "Crema", categoria: "refris", comprado: true },
+    "-3": { nombre: "Queso", categoria: "refris", comprado: false, precio: 0 }, // 0 sí es precio
+    "-4": { nombre: "Pinol", categoria: "limpieza", comprado: false },
+  };
+  const r = plano(L.agruparArticulos(arts, [], { soloSinPrecio: true }));
+  assert.deepEqual(r.map((g) => [g.categoria, g.articulos.map((a) => a.nombre)]), [["refris", ["Crema"]], ["limpieza", ["Pinol"]]]);
+  assert.equal(L.contarSinPrecio(arts), 2);
+  assert.equal(L.contarSinPrecio({}), 0);
+  const C = (c, u) => L.cantidadParaUnidad(c, u);
+  assert.equal(C(1, "g"), 100);       // 1 pza → 100 g, no 1 g
+  assert.equal(C(1, "ml"), 100);
+  assert.equal(C(250, "g"), 300);     // al múltiplo de 100 de arriba
+  assert.equal(C(1, "kg"), 1);
+  assert.equal(C(0.5, "pieza"), 1);   // 0.5 kg → 1 pza
+  assert.equal(C(2, "pieza"), 2);
+  assert.equal(C(1.2, "kg"), 1.5);
+  assert.equal(C(undefined, "lata"), 1);
+  assert.equal(C(20000, "pieza"), 9999);
 });

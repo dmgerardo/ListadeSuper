@@ -6,22 +6,11 @@
 > de verdad técnica (esa es `AGENTS.md`), pero sigue teniendo el detalle completo de cada
 > fase y el modelo de datos.
 
-## Estado actual: v13 en `main` (2026-10-06)
+## Estado actual: v14 en `main` (2026-10-06)
 
 - v13: selector de apariencia Sistema/Claro/Oscuro en la hoja "Mi cuenta".
-- **Pedidos del usuario EN PAUSA (él interrumpió para pedir lo del tema; retomarlos):**
-  1. Ordenar alfabéticamente los artículos dentro de cada pasillo (hoy: orden de creación,
-     `agruparArticulos` en `js/logica-articulos.js`; ajustar sus pruebas y el orden esperado
-     en `pruebas/e2e/flujo-compra.js`).
-  2. Captura rápida de unidades y precios de lo ya importado. El usuario eligió el
-     **editor rápido**: modo en "Toda la lista" con selector de unidad y precio en línea por
-     renglón, Enter salta al siguiente, guardado campo por campo, filtro "solo sin precio".
-     Descartado: leer tiendas en automático (no hay backend; CORS/CSP; términos de uso) — y la
-     sesión en la nube no llega a walmart/chedraui/soriana/lacomer/heb (política de red).
-     Cuidado: no repintar la lista en cada `value` mientras se edita (perdería el foco).
-
-- v12: contador (−)/(+) con unidad explícita en cada renglón de "Toda la lista" (pedido del
-  usuario, "tipo shopping kart"). Detalle en `AGENTS.md` §3b. Sin cambios de datos ni reglas.
+- v14: orden alfabético dentro de cada pasillo y editor rápido de unidades y precios
+  ("Unidades y precios" en "Toda la lista"). Detalle en `AGENTS.md` §3b.
 
 ## Fase 2.1 (rediseño "Mercado fresco") — EN `main` (v11, 2026-10-06)
 

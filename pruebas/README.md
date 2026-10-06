@@ -32,7 +32,9 @@ la nube el CLI manda su llamada local para cargar las reglas por el proxy de sal
   ni violaciones de CSP, sin controles de la barra traslapados; además (Fase 2.1) índice de
   pasillos que salta a la sección, baldosas con ícono, marcado sin tachar, fuentes cargadas,
   etiqueta de pestaña activa solo desde 375 px y ningún toast encima de un formulario; y
-  (v12) el contador (−)/(+) de "Toda la lista": paso por unidad, mínimo, no toca "marcado". Capturas en
+  (v12) el contador (−)/(+) de "Toda la lista": paso por unidad, mínimo, no toca "marcado";
+  (v13) el selector de apariencia; (v14) orden alfabético y el editor de unidades y precios
+  (coma decimal, Enter al siguiente, foco estable mientras llegan cambios, inválido/vacío). Capturas en
   `pruebas/e2e/capturas/` (o `CAPTURAS=...`), ignoradas por git.
 
 Nada de `pruebas/` se despliega (está en `hosting.ignore` de `firebase.json`).
