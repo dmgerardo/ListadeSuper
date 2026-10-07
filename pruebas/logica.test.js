@@ -351,10 +351,12 @@ test("importar: un renglón con tabulador que se llama como un pasillo sigue sie
 test("importar: reconoce pasillos renombrados y creados; los alias solo si el destino existe", () => {
   const cats = { especiales: "Especiales", verduras: "Frutas y verduras frescas", c_x1: "Mascotas", c_x2: "Pan" };
   const r = plano(L.parsearNotaImportada("Mascotas\n\tCroquetas\nFrutas y verduras frescas\n\tChile\nPan\n\tBolillo\nCarnes\n\tBistec", cats));
+  // "Carnes" → carniceria no existe en esta lista, pero va seguido de un artículo: es un pasillo NUEVO.
   assert.deepEqual(r.articulos.map((a) => a.nombre + "@" + a.categoria), [
-    "Croquetas@c_x1", "Chile@verduras", "Bolillo@c_x2", "Bistec@c_x2" // "Carnes" → carniceria no existe: es renglón ignorado
+    "Croquetas@c_x1", "Chile@verduras", "Bolillo@c_x2", "Bistec@nuevo:carnes"
   ]);
-  assert.deepEqual(r.ignorados, ["Carnes"]);
+  assert.deepEqual(r.nuevos, [{ clave: "carnes", nombre: "Carnes" }]);
+  assert.deepEqual(r.ignorados, []);
 });
 
 test("agruparArticulos y copiarArticulos usan los pasillos de la lista", () => {
@@ -391,4 +393,29 @@ test("fotos.js: urlDeFotoValida acepta solo https y recorta espacios", () => {
   for (const malo of ["http://sitio.com/a.jpg", "javascript:alert(1)", "data:image/png;base64,AAA", "sitio.com/a.jpg", "", null, "https://x.com/" + "a".repeat(1000)]) {
     assert.equal(v(malo), null, String(malo).slice(0, 30));
   }
+});
+
+test("importar: encabezados desconocidos seguidos de artículos crean pasillos nuevos (nota del usuario)", () => {
+  const nota = [
+    "Alimentos Fríos", "*Pollo ", "*Pescado ", "*Queso menonita 1kg", "",
+    "Alimentos empacados", "*Vainilla de Papantla", "*Cocoa", "",
+    "Cuidado personal", "*Jabones Dove", "*Shampoo", "",
+    "Farmacia", "*Omega 3", "",
+    "Limpieza", "*Detergente ropa", "",
+    "Varios", "*Pijamas", "",
+  ].join("\n");
+  const r = plano(L.parsearNotaImportada(nota));
+  assert.deepEqual(r.nuevos.map((n) => n.nombre), ["Alimentos Fríos", "Alimentos empacados", "Varios"]);
+  const porCat = {};
+  for (const a of r.articulos) porCat[a.categoria] = (porCat[a.categoria] || 0) + 1;
+  assert.deepEqual(porCat, { "nuevo:alimentos frios": 3, "nuevo:alimentos empacados": 2, personal: 2, farmacia: 1, limpieza: 1, "nuevo:varios": 1 });
+  assert.deepEqual(r.ignorados, []);
+  assert.equal(r.articulos[0].nombre, "Pollo"); // "*Pollo " con espacio final y sin espacio tras el asterisco
+});
+
+test("importar: una nota bajo un encabezado conocido, o un título sin artículos, NO crean pasillos", () => {
+  const r = plano(L.parsearNotaImportada("Mi título\nExplicación\nEspeciales\nponer compras de única ocasión\n*Regalo\n"));
+  assert.deepEqual(r.nuevos, []);
+  assert.deepEqual(r.articulos.map((a) => a.nombre + "@" + a.categoria), ["Regalo@especiales"]);
+  assert.deepEqual(r.ignorados, ["Mi título", "Explicación", "poner compras de única ocasión"]);
 });

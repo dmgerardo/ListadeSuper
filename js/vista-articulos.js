@@ -172,15 +172,18 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       'data-alternar="' + esc(a.id) + '" aria-label="' + esc(etiquetaCasilla) + '" title="' + esc(etiquetaCasilla) + '">' +
       '<span class="casilla-circulo">' + icono("check", 18) + "</span>" +
       "</button>" +
-      (a.fotoUrl
-        ? '<button type="button" class="miniatura-fila" data-ver-foto="' + esc(a.id) + '" aria-label="' + esc("Ver la foto de " + a.nombre) + '" title="Ver la foto">' +
-          '<img src="' + esc(a.fotoUrl) + '" alt="" loading="lazy" decoding="async"></button>'
-        : "") +
       '<button type="button" class="cuerpo-articulo" data-editar="' + esc(a.id) + '" aria-label="Editar ' + esc(a.nombre) + '">' +
       '<span class="textos-articulo">' +
       '<span class="nombre-articulo">' + esc(a.nombre) + "</span>" +
       (detalle.length ? '<span class="detalle-articulo">' + detalle.join(" · ") + "</span>" : "") +
       "</span>" +
+      // Miniatura al final del texto y antes del precio (pedido del usuario). Es un <span> dentro
+      // del botón de editar (no puede haber botones anidados): tocarla abre la foto en grande, el
+      // resto del renglón abre la edición; desde el formulario también se ve la foto con teclado.
+      (a.fotoUrl
+        ? '<span class="miniatura-fila" data-ver-foto="' + esc(a.id) + '" title="Ver la foto">' +
+          '<img src="' + esc(a.fotoUrl) + '" alt="' + esc("Foto de " + a.nombre) + '" loading="lazy" decoding="async"></span>'
+        : "") +
       precio +
       "</button>" +
       '<button type="button" class="btn-favorito" data-favorito="' + esc(a.id) + '" aria-pressed="' + (a.favorito ? "true" : "false") + '" ' +
@@ -1033,7 +1036,8 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       "<h3>Importar desde una nota</h3>" +
         '<p class="texto-suave">Pega tu lista. Cada renglón con el nombre de un pasillo (Frutas, Verduras, ' +
         "Abarrotes…, o uno que tú hayas creado) abre esa sección, y cada renglón con viñeta (<code>* Plátanos</code>) " +
-        "o que empiece con tabulador es un artículo. " +
+        "o que empiece con tabulador es un artículo. Un renglón con otro nombre, seguido de artículos, " +
+        "<strong>crea un pasillo nuevo</strong> con ese nombre. " +
         "Todo entra <strong>marcado</strong> (no hace falta); después desmarca lo que necesites comprar.</p>" +
         '<div class="campo"><label for="texto-importar">Tu lista</label>' +
         '<textarea id="texto-importar" rows="8" maxlength="30000" placeholder="Frutas&#10;* Plátanos&#10;* Mangos"></textarea></div>' +
@@ -1049,12 +1053,14 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     var previa = modal.elemento.querySelector("[data-vista-previa]");
     var botonImportar = modal.elemento.querySelector("[data-importar]");
     var porAgregar = [];
+    var pasillosDeLaNota = []; // pasillos que trae la nota y la lista aún no tiene
 
     function actualizarPrevia() {
       var cats = categoriasLista();
       var r = parsearNotaImportada(area.value, cats);
       var s = separarRepetidos(r.articulos, articulos, cats);
       porAgregar = s.aAgregar;
+      pasillosDeLaNota = r.nuevos;
       botonImportar.disabled = porAgregar.length === 0;
       botonImportar.textContent = porAgregar.length ? "Importar " + porAgregar.length : "Importar";
       if (!area.value.trim()) {
@@ -1068,11 +1074,16 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       var html = '<div class="tarjeta vista-previa-importar"><p><strong>' + porAgregar.length + "</strong> artículos nuevos";
       if (s.repetidos.length) html += " · " + s.repetidos.length + " ya estaban en la lista (no se duplican)";
       html += "</p>";
+      // Los pasillos nuevos de la nota se listan con su nombre y la marca "(nuevo)".
+      var nombresNuevos = {};
+      r.nuevos.forEach(function (n) { nombresNuevos["nuevo:" + n.clave] = n.nombre; });
       var ids = ordenCategoriasEfectivo(info.ordenCategorias, cats).filter(function (c) { return porCategoria[c]; });
-      if (ids.length) {
-        html += '<ul class="resumen-importar">' + ids.map(function (c) {
-          return "<li>" + esc(cats[c]) + ": " + porCategoria[c] + "</li>";
-        }).join("") + "</ul>";
+      var idsNuevos = Object.keys(nombresNuevos).filter(function (c) { return porCategoria[c]; });
+      if (ids.length || idsNuevos.length) {
+        html += '<ul class="resumen-importar">' +
+          ids.map(function (c) { return "<li>" + esc(cats[c]) + ": " + porCategoria[c] + "</li>"; }).join("") +
+          idsNuevos.map(function (c) { return "<li>" + esc(nombresNuevos[c]) + " <em>(pasillo nuevo)</em>: " + porCategoria[c] + "</li>"; }).join("") +
+          "</ul>";
       }
       if (r.ignorados.length) {
         html += '<p class="texto-suave">Renglones que no son pasillo ni artículo (se ignoran): ' +
@@ -1094,13 +1105,33 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       if (!porAgregar.length) return;
       var cambios = {};
       var deshacer = {};
+      // Pasillos nuevos de la nota que sí tienen artículos por agregar: se crean en ESTA misma
+      // escritura (escrituraCategorias deja `info.categorias` completo si aún no lo estaba).
+      var cats = categoriasLista();
+      var idPorClave = {};
+      var nuevas = Object.assign({}, cats);
+      pasillosDeLaNota.forEach(function (p) {
+        if (!porAgregar.some(function (n) { return n.categoria === "nuevo:" + p.clave; })) return;
+        var idNuevo = idNuevaCategoria(nuevas);
+        idPorClave["nuevo:" + p.clave] = idNuevo;
+        nuevas[idNuevo] = p.nombre;
+      });
+      var idsCreados = Object.keys(idPorClave).map(function (k) { return idPorClave[k]; });
+      if (idsCreados.length) {
+        var rutasPasillos = escrituraCategorias(info, nuevas, ordenCategoriasEfectivo(info.ordenCategorias, cats).concat(idsCreados));
+        Object.keys(rutasPasillos).forEach(function (ruta) {
+          cambios["listas/" + listaId + "/info/" + ruta] = rutasPasillos[ruta];
+        });
+        // Deshacer también quita los pasillos que la importación creó.
+        idsCreados.forEach(function (idNuevo) { deshacer["listas/" + listaId + "/info/categorias/" + idNuevo] = null; });
+      }
       porAgregar.forEach(function (n) {
         var id = refArticulos.push().key;
         cambios[rutaArticulo(id)] = {
           nombre: n.nombre,
           cantidad: 1,
           unidad: "pieza",
-          categoria: n.categoria,
+          categoria: idPorClave[n.categoria] || n.categoria,
           comprado: true,
           compradoPor: usuario.uid,
           agregadoPor: usuario.uid,
@@ -1113,7 +1144,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       if (vista !== "todo") cambiarVista("todo"); // lo importado entra marcado: verlo en "Toda la lista"
       actualizarMultiple(cambios)
         .then(function () {
-          mostrarToast(cuantos + " artículos importados", {
+          mostrarToast(cuantos + " artículos importados" + (idsCreados.length ? " y " + idsCreados.length + (idsCreados.length === 1 ? " pasillo nuevo" : " pasillos nuevos") : ""), {
             duracionMs: 8000,
             accion: {
               etiqueta: "Deshacer",

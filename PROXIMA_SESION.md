@@ -20,6 +20,7 @@
 
 ## Qué se hizo, por versión (más reciente primero)
 
+- **v22 (ajustes) —** importar crea pasillos nuevos a partir de los encabezados desconocidos; la miniatura va antes del precio (es un `<span>` dentro del botón de editar, no un botón).
 - **v22 — fotos de artículos** (`js/fotos.js`, `storage.rules`). Storage ya está activo y sus
   reglas se publicaron desde el workflow (log del intento 2 de la corrida 21: "released rules
   storage.rules"; la cuenta `github-actions-deploy` tiene Firebase Admin + Storage Admin). El paso

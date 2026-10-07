@@ -79,7 +79,11 @@ en npm es `12.19.0`, ver §7).
   hoja "Pasillos", desplegables y vista previa de importar. Lo decide `ordenCategoriasEfectivo`
   (ignora `info.ordenCategorias`, que ya no se usa; renombrar un pasillo lo cambia de lugar).
 - **Importar**: un renglón que empieza con tabulador es artículo aunque no traiga viñeta; los
-  encabezados se reconocen contra los pasillos de la lista (nombre propio antes que alias).
+  encabezados se reconocen contra los pasillos de la lista (nombre propio antes que alias). Un renglón
+  suelto que NO es pasillo conocido pero va seguido de artículos es un **pasillo nuevo**
+  (`parsearNotaImportada(...).nuevos`, artículos con categoría temporal `nuevo:<clave>`): al importar se
+  crean en la MISMA escritura (`escrituraCategorias`) y el Deshacer también los quita. Un renglón suelto
+  justo después de un encabezado ("poner compras de única ocasión") es una nota y se ignora.
 - **Artículo nuevo desde el campo rápido** (Enter o +, si no existe): abre el formulario con
   nombre/cantidad/unidad ya puestos y SIN pasillo elegido (hay que escogerlo; no se asume
   Especiales). El "+" del título de cada pasillo abre el mismo formulario con ese pasillo.

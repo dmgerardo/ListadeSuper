@@ -165,6 +165,44 @@ async function correr(browser, ancho, modo) {
   assert.ok(Object.values(todas[copiaId].articulos).some((a) => a.categoria === idMascotas));
   paso("duplicar conserva pasillos y artículos");
 
+  // 8. Importar una nota con encabezados que la lista no tiene: crea los pasillos en la misma escritura.
+  await page.goto(BASE + "/lista.html?lista=" + listaId);
+  await pausa(page, 500);
+  await page.click('[data-vista="todo"]');
+  await pausa(page);
+  await page.click('[data-accion="importar"]');
+  const nota = "Alimentos Fríos\n*Pollo \n*Pescado \n*Queso menonita 1kg\n\nAlimentos empacados\n*Vainilla de Papantla\n*Cocoa\n\n" +
+    "Cuidado personal\n*Jabones Dove\n*Shampoo\n\nFarmacia\n*Omega 3\n\nVarios\n*Pijamas\n";
+  await page.fill("#texto-importar", nota);
+  await pausa(page);
+  const previa2 = await page.textContent("[data-vista-previa]");
+  assert.match(previa2, /9<\/strong> artículos nuevos|9 artículos nuevos/);
+  assert.match(previa2, /Alimentos Fríos \(pasillo nuevo\): 3/);
+  assert.match(previa2, /Alimentos empacados \(pasillo nuevo\): 2/);
+  assert.match(previa2, /Varios \(pasillo nuevo\): 1/);
+  assert.match(previa2, /Personal: 2/);
+  assert.doesNotMatch(previa2, /se ignoran/);
+  await page.screenshot({ path: path.join(CAPTURAS, "pasillos-importar-nuevos-" + ancho + "-" + modo + ".png") });
+  const escAntes = await page.evaluate(() => window.__mockBD.escrituras.length);
+  await page.click("[data-importar]");
+  await pausa(page, 500);
+  assert.equal(await page.evaluate((n) => window.__mockBD.escrituras.length - n, escAntes), 1, "pasillos + artículos en UNA escritura");
+  const info2 = await info();
+  const nombresCats = Object.values(info2.categorias).map((c) => c.nombre);
+  for (const n of ["Alimentos Fríos", "Alimentos empacados", "Varios"]) assert.ok(nombresCats.includes(n), n);
+  const idFrios = Object.keys(info2.categorias).find((k) => info2.categorias[k].nombre === "Alimentos Fríos");
+  const arts2 = Object.values(await leerBD(page, "listas/" + listaId + "/articulos"));
+  assert.deepEqual(arts2.filter((a) => a.categoria === idFrios).map((a) => a.nombre).sort(), ["Pescado", "Pollo", "Queso menonita 1kg"]);
+  assert.equal(arts2.filter((a) => String(a.categoria).startsWith("nuevo:")).length, 0, "ningún artículo queda con la clave temporal");
+  assert.ok(await nombresPasillos().then((n) => n.includes("Alimentos Fríos") && n.includes("Varios")));
+  assert.match(await ultimoToast(page), /9 artículos importados y 3 pasillos nuevos/);
+  // Deshacer quita artículos Y los pasillos creados.
+  await page.click(".toast button");
+  await pausa(page, 500);
+  const info3 = await info();
+  assert.ok(!Object.values(info3.categorias).some((c) => ["Alimentos Fríos", "Alimentos empacados", "Varios"].includes(c.nombre)), "Deshacer quita los pasillos nuevos");
+  paso("importar con pasillos nuevos: vista previa, una escritura, Deshacer completo");
+
   assert.deepEqual(errores, []);
   await ctx.close();
 }

@@ -249,7 +249,9 @@ function categoriaDeEncabezado(texto, categorias) {
 }
 
 // parsearNotaImportada(texto, categorias) → { articulos: [{ nombre, categoria }], ignorados:
-// [renglón] }. `categorias` = { id: nombre } de la lista (categoriasEfectivas; omitido = los 14
+// [renglón], nuevos: [{ clave, nombre }] }. `nuevos` son los pasillos que la nota trae y la lista
+// aún no tiene (su artículos llevan categoria "nuevo:<clave>"; quien importa los crea y la
+// reemplaza por el id real). `categorias` = { id: nombre } de la lista (categoriasEfectivas; omitido = los 14
 // por defecto), así un pasillo creado o renombrado por el usuario también se reconoce.
 // Formato de la nota del usuario (Notas del iPhone): un renglón SIN viñeta que coincide con
 // un pasillo abre esa sección; cada renglón CON viñeta es un artículo de la sección actual (o
@@ -262,9 +264,16 @@ function categoriaDeEncabezado(texto, categorias) {
 // usuario. No se interpreta cantidad del texto ("Aguacates dos", "Leche Entera 2 Santa
 // Clara"): el formato es irregular y partirlo echaría a perder el nombre.
 function parsearNotaImportada(texto, categorias) {
-  var resultado = { articulos: [], ignorados: [] };
+  var resultado = { articulos: [], ignorados: [], nuevos: [] };
   var categoria = CATEGORIA_DEFECTO;
   var vistos = {};
+  var nuevosPorClave = {};
+  // true justo después de un encabezado (y hasta el primer artículo): un renglón suelto ahí es una
+  // nota bajo el encabezado ("Especiales" / "poner compras de única ocasión"), no otro pasillo.
+  var trasEncabezado = false;
+
+  // Cada renglón no vacío se clasifica una vez: artículo (viñeta o tabulador) o texto suelto.
+  var renglones = [];
   String(texto || "")
     .split(/\r?\n/)
     .forEach(function (renglon) {
@@ -272,24 +281,46 @@ function parsearNotaImportada(texto, categorias) {
       var limpio = renglon.replace(/\u00a0/g, " ").trim();
       if (!limpio) return;
       var vineta = _PATRON_VINETA.exec(limpio);
-      var nombreCrudo;
-      if (vineta) {
-        nombreCrudo = vineta[1];
-      } else if (conTabulador) {
-        nombreCrudo = limpio;
-      } else {
-        var cat = categoriaDeEncabezado(limpio, categorias);
-        if (cat) categoria = cat;
-        else resultado.ignorados.push(limpio);
+      renglones.push({
+        texto: limpio,
+        esArticulo: !!vineta || conTabulador,
+        nombre: vineta ? vineta[1] : limpio
+      });
+    });
+
+  renglones.forEach(function (r, i) {
+    if (!r.esArticulo) {
+      var cat = categoriaDeEncabezado(r.texto, categorias);
+      if (cat) {
+        categoria = cat;
+        trasEncabezado = true;
         return;
       }
-      var nombre = nombreCrudo.replace(/\s+/g, " ").trim().slice(0, LARGO_MAX_NOMBRE);
-      if (!nombre) return;
-      var llave = categoria + "|" + normalizarNombre(nombre);
-      if (vistos[llave]) return;
-      vistos[llave] = true;
-      resultado.articulos.push({ nombre: nombre, categoria: categoria });
-    });
+      // Un renglón suelto que NO es un pasillo conocido pero que va seguido de artículos es el
+      // encabezado de un pasillo NUEVO ("Alimentos Fríos"): se propone crearlo. Si no va seguido
+      // de artículos (título, instrucciones) se ignora, como antes.
+      var siguiente = renglones[i + 1];
+      var clave = normalizarNombre(r.texto).replace(/[:.]+$/, "");
+      if (!trasEncabezado && siguiente && siguiente.esArticulo && clave && r.texto.replace(/[:.]+$/, "").trim().length <= LARGO_MAX_CATEGORIA) {
+        if (!nuevosPorClave[clave]) {
+          nuevosPorClave[clave] = { clave: clave, nombre: r.texto.replace(/[:.]+$/, "").replace(/\s+/g, " ").trim() };
+          resultado.nuevos.push(nuevosPorClave[clave]);
+        }
+        categoria = "nuevo:" + clave;
+        trasEncabezado = true;
+      } else {
+        resultado.ignorados.push(r.texto);
+      }
+      return;
+    }
+    trasEncabezado = false;
+    var nombre = r.nombre.replace(/\s+/g, " ").trim().slice(0, LARGO_MAX_NOMBRE);
+    if (!nombre) return;
+    var llave = categoria + "|" + normalizarNombre(nombre);
+    if (vistos[llave]) return;
+    vistos[llave] = true;
+    resultado.articulos.push({ nombre: nombre, categoria: categoria });
+  });
   return resultado;
 }
 
