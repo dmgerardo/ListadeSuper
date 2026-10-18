@@ -197,7 +197,7 @@ async function invitacionYCoordinacion(browser, viewport, etiqueta) {
   assert.match(await page.textContent('.fila-articulo:has([aria-label="Cantidad de Leche"]) .por-quien'), /por Ana/);
   // Mi marca queda en el registro, con mi uid, en la misma escritura.
   const antes = await page.evaluate(() => window.__mockBD.escrituras.length);
-  await page.click('[aria-label="Marcar Café como comprado"]');
+  await page.click('[aria-label="Desmarcar Café (ya lo tengo)"]');
   await pausa(page);
   const esc = await page.evaluate((n) => window.__mockBD.escrituras.slice(n), antes);
   assert.equal(esc.length, 1, "marcar + registrar = UNA escritura");

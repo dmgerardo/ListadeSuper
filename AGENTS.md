@@ -39,8 +39,8 @@ en npm es `12.19.0`, ver §7).
 - **Todo JS/CSS nuevo** se agrega a la lista `ARCHIVOS_APP_SHELL` de `sw.js` y a los
   `<script>`/`<link>` de los HTML que lo necesiten.
 - **Semántica de `comprado`** (confirmada con el usuario): marcado = "ya lo tengo / no hace
-  falta"; desmarcado = "por comprar". La lista es fija y se reutiliza: no se borran artículos
-  al comprar. Lo importado entra marcado. La vista por defecto es "Por comprar".
+  falta"; desmarcado = "por comprar" (dato). En "Artículos" la casilla se MUESTRA invertida: marcada = hay que comprarlo. La lista es fija y se reutiliza: no se borran artículos
+  al comprar. Lo importado entra marcado. La vista por defecto es "Comprar".
 - **`database.rules.json` se GENERA** con `python3 scripts/generar-reglas.py` (las expresiones
   "admin", "miembro activo", etc. se definen una vez ahí). No editar el JSON a mano.
 - **Roles de la app** (`roles/{uid}`: admin / participante / invitado + activo). El
@@ -108,7 +108,7 @@ en npm es `12.19.0`, ver §7).
   (+) va en el botón circular a su derecha. Cada script monta lo suyo en su ranura
   (`data-ranura="pestanas|ayuda|estado|cuenta|principal"`) y la vacía al cambiar de
   pantalla o de sesión. No crear FABs ni barras fijas nuevas fuera de ella. En `lista.html`
-  las pestañas de la barra son las **dos vistas** ("Por comprar" con su contador / "Toda la
+  las pestañas de la barra son las **dos vistas** ("Comprar" con su contador / "Toda la
   lista"; las monta `montarVistaArticulos`), pedido del usuario. Favoritos/Plantillas/Miembros
   **salieron de la barra** mientras no existan: con ellos son 8 controles ≈ 372 px y no caben
   con objetivos de 44 px. Al construir la Fase 3/4, decidir con el usuario dónde van (p. ej.
@@ -118,7 +118,7 @@ en npm es `12.19.0`, ver §7).
   (Escape y clic fuera solo afectan al de arriba). "Guardar" solo llama `guardar()`: cada
   formulario se cierra solo si guarda bien (si la validación falla, se queda abierto). Todo
   formulario nuevo debe pasar `hayCambios`/`guardar`.
-- **Deshacer en "Por comprar"**: además del toast, la sección "Marcaste hace poco" (lo que YO
+- **Deshacer en "Comprar"**: además del toast, la sección "Marcaste hace poco" (lo que YO
   marqué en 15 min, desde el registro de actividad) con "Regresar"; no se pierde si llega otro
   aviso ni al recargar.
 - **Un solo toast a la vez** (`mostrarToast` reemplaza el anterior). Los toasts van
@@ -146,7 +146,7 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `js/catalogo-categorias.js` | Las 14 categorías/pasillos del usuario (confirmadas en Fase 2, orden de su nota de iPhone; "Especiales" es el cajón, no hay "Otros"), su ícono (`CATEGORIAS_ICONOS`), alias para importar y las 11 unidades |
 | `js/logica-articulos.js` | Lógica pura, probada en Node: `normalizarNombre`, `interpretarTextoRapido` ("2 kg tomate"), `ordenCategoriasEfectivo`, `agruparArticulos`, `totalesLista`, `parsearNotaImportada`, `separarRepetidos`, `buscarPorNombre`, `textoCantidad`, `pasoDeUnidad`, `siguienteCantidad`, `etiquetaUnidad` (contador −/+), `compararPorNombre` (orden alfabético), `cantidadParaUnidad`, `contarSinPrecio` (editor de precios), `copiarArticulos` (duplicar lista) |
 | `js/fotos.js` | Fotos: reducir, subir a Storage, selector (archivo/portapapeles/URL) y vista ampliada |
-| `js/vista-articulos.js` | Pantalla de una lista (incluye la hoja "Pasillos" y el filtro Favoritos): vistas "Por comprar"/"Toda la lista", campo rápido (busca + agrega), formulario agregar/editar/eliminar, marcar todo, importar nota, totales, Deshacer |
+| `js/vista-articulos.js` | Pantalla de una lista (incluye la hoja "Pasillos" y el filtro Favoritos): vistas "Comprar"/"Artículos", campo rápido (busca + agrega), formulario agregar/editar/eliminar, marcar todo, importar nota, totales, Deshacer |
 | `js/vista-listas.js` | Pantalla "Mis listas": crear, abrir, renombrar, eliminar (dueño); avisos según rol |
 | `js/roles.js` | `ADMIN_RAIZ`, `rolEfectivo`, `asegurarRol`, `escucharRol`, `montarCuentaConRol` |
 | `js/vista-usuarios.js` + `js/pagina-usuarios.js` + `usuarios.html` | Administración de usuarios (rol y activo) |
@@ -183,7 +183,7 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
   `cooking-pot`, abarrotes `package`, botanas_semillas `popcorn`, panaderia `croissant`,
   limpieza `spray-can`, personal `toothbrush`, farmacia `pill`.
 - **Marcado** se pinta en texto suave **sin tachar** ("ya lo tengo", no "borrado").
-- **Contador (−) cantidad unidad (+)** en cada renglón de "Toda la lista" (no en "Por
+- **Contador (−) cantidad unidad (+)** en cada renglón de "Artículos" (no en "Por
   comprar"), tipo carrito. Solo cambia `cantidad` (una escritura por toque, sin toast); NO
   marca ni desmarca. Paso: 1 (piezas, paquetes…), 0.5 (kg, l), 100 (g, ml); nunca baja de un
   paso (las reglas exigen > 0; quitar = "Eliminar"). Unidad explícita: solo "pieza" se abrevia
@@ -194,7 +194,7 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
   índice se vacía y los títulos vuelven a pegarse hasta arriba (`:has(.indice-pasillos:empty)`).
 - **Orden dentro de cada pasillo: alfabético** (`Intl.Collator("es")`: sin acentos ni
   mayúsculas, ñ tras n, números por valor; desempate por llave). Pedido del usuario.
-- **Editor rápido de unidades y precios** ("Unidades y precios" en "Toda la lista"): por
+- **Editor rápido de unidades y precios** ("Unidades y precios" en "Artículos"): por
   renglón, selector de unidad + precio unitario; guarda campo por campo en `change` (salir del
   campo o Enter, que pasa al siguiente); "Solo sin precio"; "Listo" lo cierra. **Mientras está
   abierto la lista no se repinta con cada `value`** (`editorPintado`): repintar perdería el

@@ -66,11 +66,11 @@
   en documentos. El usuario agregó `https://pilo-compras.web.app/__/auth/handler` al cliente
   OAuth y **confirmó que ya funciona**.
 - **v15 —**
-  - "Por comprar" y "Toda la lista" pasaron a la barra inferior.
+  - "Comprar" y "Artículos" pasaron a la barra inferior.
   - El índice de pasillos va arriba, fijo, con el pasillo actual resaltado.
 - **v14 —**
   - Orden alfabético dentro de cada pasillo.
-  - Editor rápido "Unidades y precios" (en "Toda la lista").
+  - Editor rápido "Unidades y precios" (en "Artículos").
 - **v13 —** selector de apariencia Sistema/Claro/Oscuro en "Mi cuenta".
 - **v11 —** rediseño "Mercado fresco" (Fase 2.1). Ver `AGENTS.md` §3b (tokens, íconos,
   colores por pasillo) y §3c (**lenguaje visual obligatorio para las fases siguientes**).
@@ -86,9 +86,9 @@
 Viene de una nota de Notas del iPhone (copia en `pruebas/nota-ejemplo.txt`, 171 artículos en
 14 secciones). La lista es fija y se reutiliza:
 
-- **Marcado = ya lo tengo / no hace falta; desmarcado = por comprar.**
-- En casa desmarca lo que falta ("Toda la lista").
-- En la tienda marca lo que va tomando ("Por comprar", la vista por defecto). Lo marcado
+- **Dato: comprado:true = ya lo tengo; false = por comprar. En "Comprar" la casilla marca lo que tomas; en "Artículos" la casilla va INVERTIDA (marcada = hay que comprarlo).**
+- En casa desmarca lo que falta ("Artículos").
+- En la tienda marca lo que va tomando ("Comprar", la vista por defecto). Lo marcado
   desaparece de la vista y se puede deshacer.
 
 Lo marcado se ve en color suave, **no tachado**. No hay sección "En el carrito".
@@ -140,7 +140,7 @@ verifica el usuario.
 - **Unidades:** pieza, kg, g, l, ml, paquete, caja, bolsa, lata, botella, docena.
 - **Importar y vistas:**
   - Al importar, todo entra marcado.
-  - La vista por defecto es "Por comprar" y se recuerda por dispositivo.
+  - La vista por defecto es "Comprar" y se recuerda por dispositivo.
 - **Duplicar:** por defecto todo entra marcado; se puede elegir "igual que en la original".
 - **Favoritos/plantillas y moneda:**
   - Favoritos y plantillas son **por lista**.

@@ -2,8 +2,8 @@
 //
 // Modelo de uso (confirmado con el usuario en la Fase 2): la lista es fija y se reutiliza.
 // MARCADO (comprado: true) = "ya lo tengo / no hace falta"; DESMARCADO = "por comprar".
-// En casa se desmarca lo que falta (vista "Toda la lista"); en la tienda se marca lo que se
-// va tomando (vista "Por comprar", la de por defecto). Por eso no hay sección "En el
+// En casa se desmarca lo que falta (vista "Artículos", casilla marcada = hay que comprarlo); en la tienda se marca lo que se
+// va tomando (vista "Comprar", la de por defecto). Por eso no hay sección "En el
 // carrito": lo marcado simplemente sale de "Por comprar".
 //
 // Usa logica-articulos.js para todo cálculo (agrupar, totales, importar, interpretar texto).
@@ -100,11 +100,11 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
   // caben las dos vistas con objetivos táctiles de 44 px (8 controles ≈ 372 px > 366 px).
   montarPestanas(
     '<div class="pestanas-vista" role="tablist" aria-label="Qué artículos ver">' +
-      '<button type="button" role="tab" class="item-barra" data-vista="pendientes" title="Por comprar">' +
-      icono("shopping-cart", 22) + '<span class="etiqueta-barra">Por comprar</span>' +
+      '<button type="button" role="tab" class="item-barra" data-vista="pendientes" title="Comprar">' +
+      icono("shopping-cart", 22) + '<span class="etiqueta-barra">Comprar</span>' +
       '<span class="contador contador-barra" data-contador-pendientes></span></button>' +
-      '<button type="button" role="tab" class="item-barra" data-vista="todo" title="Toda la lista">' +
-      icono("list", 22) + '<span class="etiqueta-barra">Toda la lista</span></button>' +
+      '<button type="button" role="tab" class="item-barra" data-vista="todo" title="Artículos">' +
+      icono("list", 22) + '<span class="etiqueta-barra">Artículos</span></button>' +
       "</div>"
   );
   var ranuraPestanas = ranuraBarra("pestanas");
@@ -163,12 +163,15 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       if (conContador) detalle.push('<span class="precio-detalle">' + subtotal + "</span>");
       else precio = '<span class="precio-articulo">' + subtotal + "</span>";
     }
-    var etiquetaCasilla = a.comprado
-      ? "Desmarcar " + a.nombre + " (poner por comprar)"
+    // La casilla se lee distinto según la vista (pedido del usuario): en "Artículos" marcada =
+    // hay que comprarlo (el dato no cambia: comprado:false); en "Comprar" marcar = ya lo tomé.
+    var casillaMarcada = conContador ? !a.comprado : !!a.comprado;
+    var etiquetaCasilla = conContador
+      ? (a.comprado ? "Marcar " + a.nombre + " (poner en Comprar)" : "Desmarcar " + a.nombre + " (ya lo tengo)")
       : "Marcar " + a.nombre + " como comprado";
     return (
       '<li class="fila-articulo' + (a.comprado ? " marcado" : "") + (conContador ? " con-contador" : "") + '">' +
-      '<button type="button" class="casilla" role="checkbox" aria-checked="' + (a.comprado ? "true" : "false") + '" ' +
+      '<button type="button" class="casilla" role="checkbox" aria-checked="' + (casillaMarcada ? "true" : "false") + '" ' +
       'data-alternar="' + esc(a.id) + '" aria-label="' + esc(etiquetaCasilla) + '" title="' + esc(etiquetaCasilla) + '">' +
       '<span class="casilla-circulo">' + icono("check", 18) + "</span>" +
       "</button>" +
@@ -293,7 +296,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
         b.classList.toggle("activo", activa);
         // Nombre accesible con el número: la etiqueta visible se oculta en la pestaña inactiva.
         b.setAttribute("aria-label", b.dataset.vista === "pendientes"
-          ? "Por comprar (" + t.pendientes + ")" : "Toda la lista (" + (t.pendientes + t.marcados) + ")");
+          ? "Comprar (" + t.pendientes + ")" : "Artículos (" + (t.pendientes + t.marcados) + ")");
       });
 
       if (modoPrecios && t.pendientes + t.marcados > 0) {
@@ -369,8 +372,8 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
           '<div class="tarjeta tarjeta-vacia">' +
           '<span class="circulo-vacio" aria-hidden="true">' + icono("check", 28) + "</span>" +
           '<p class="titulo-vacio">Nada por comprar</p>' +
-          "<p>En <strong>Toda la lista</strong> desmarca lo que necesites.</p>" +
-          '<button type="button" class="btn btn-secundario" data-ir-vista="todo">Ver toda la lista</button></div>';
+          "<p>En <strong>Artículos</strong> marca lo que necesites.</p>" +
+          '<button type="button" class="btn btn-secundario" data-ir-vista="todo">Ver artículos</button></div>';
         return;
       }
       zonaArticulos.innerHTML = pintarGrupos(grupos) + recientes;
@@ -397,7 +400,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
           '<li class="fila-reciente">' +
           '<span class="casilla-circulo casilla-hecha" aria-hidden="true">' + icono("check", 16) + "</span>" +
           '<span class="nombre-reciente">' + esc(a.nombre) + "</span>" +
-          '<button type="button" class="btn-texto" data-regresar="' + esc(e.articuloId) + '" aria-label="' + esc("Regresar " + a.nombre + " a Por comprar") + '">' +
+          '<button type="button" class="btn-texto" data-regresar="' + esc(e.articuloId) + '" aria-label="' + esc("Regresar " + a.nombre + " a Comprar") + '">' +
           icono("refresh-cw", 16) + "<span>Regresar</span></button>" +
           "</li>"
         );
@@ -1247,7 +1250,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     if (regresarBtn) {
       var idR = regresarBtn.dataset.regresar;
       escribirArticulo(idR, { comprado: false, compradoPor: null }, "desmarco")
-        .then(function () { mostrarToast((articulos[idR] || {}).nombre + " regresó a Por comprar"); })
+        .then(function () { mostrarToast((articulos[idR] || {}).nombre + " regresó a Comprar"); })
         .catch(fallo("No se pudo regresar el artículo"));
       return;
     }
@@ -1331,20 +1334,20 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
 
   montarBotonAyuda(
     "<h3>Esta lista</h3>" +
-      "<p><strong>Marcado</strong> = ya lo tienes o no hace falta. <strong>Sin marcar</strong> = por comprar.</p>" +
-      "<p><strong>En casa</strong>: abre <em>Toda la lista</em> y quita la marca de lo que necesites.</p>" +
-      "<p><strong>En la tienda</strong>: en <em>Por comprar</em> ves solo lo que falta, por pasillo. Toca el " +
+      "<p>En <em>Artículos</em>: la casilla <strong>marcada</strong> = hay que comprarlo; <strong>sin marcar</strong> = ya lo tienes.</p>" +
+      "<p><strong>En casa</strong>: abre <em>Artículos</em> y marca lo que necesites.</p>" +
+      "<p><strong>En la tienda</strong>: en <em>Comprar</em> ves solo lo que falta, por pasillo. Toca el " +
       "círculo al tomar cada cosa y desaparece de la vista (si te equivocas, toca <em>Deshacer</em>).</p>" +
       "<p>El campo de arriba <strong>busca</strong> mientras escribes. Con Enter (o <strong>+</strong>), si el " +
       "artículo ya existe lo pone por comprar; si no, lo agrega. Puedes escribir la cantidad: <em>2 kg tomate</em>. " +
       "Con el campo vacío, <strong>+</strong> abre el formulario completo.</p>" +
-      "<p>En <em>Toda la lista</em>, los botones <strong>−</strong> y <strong>+</strong> de cada artículo cambian " +
+      "<p>En <em>Artículos</em>, los botones <strong>−</strong> y <strong>+</strong> de cada artículo cambian " +
       "la cantidad (de 1 en 1; kg y litros de medio en medio; gramos y ml de 100 en 100).</p>" +
-      "<p><strong>Unidades y precios</strong> (en <em>Toda la lista</em>): pon la unidad y el precio por unidad " +
+      "<p><strong>Unidades y precios</strong> (en <em>Artículos</em>): pon la unidad y el precio por unidad " +
       "de todos tus artículos de corrido; usa <em>Solo sin precio</em> para ver lo que falta. Puedes tener abierta " +
       "la página de tu tienda en otra pestaña para copiar los precios.</p>" +
       "<p>Toca el nombre de un artículo para cambiar cantidad, unidad, pasillo, precio o notas, o para eliminarlo.</p>" +
-      "<p>En <em>Toda la lista</em> → <em>Pasillos</em> puedes cambiar el nombre de un pasillo, crear los tuyos y " +
+      "<p>En <em>Artículos</em> → <em>Pasillos</em> puedes cambiar el nombre de un pasillo, crear los tuyos y " +
       "eliminar los que estén vacíos.</p>"
   );
 

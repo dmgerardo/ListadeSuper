@@ -18,7 +18,7 @@
   }
 
   function mostrarLista(usuario) {
-    // Las pestañas de la barra (Por comprar / Toda la lista) las monta montarVistaArticulos,
+    // Las pestañas de la barra (Comprar / Artículos) las monta montarVistaArticulos,
     // que es quien sabe qué vista está activa.
     limpiarVista = montarVistaArticulos(app, listaId, usuario);
     detenerRol = montarCuentaConRol(usuario, function (rol) {

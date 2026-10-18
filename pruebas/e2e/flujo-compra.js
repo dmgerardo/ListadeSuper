@@ -107,10 +107,14 @@ async function flujo(browser, ancho, modo) {
   // 4. En "Toda la lista", desmarcar dos artículos tocando su casilla.
   await page.click('[data-vista="todo"]');
   await pausa(page);
-  await page.click('[aria-label="Desmarcar Plátanos (poner por comprar)"]');
-  await page.click('[aria-label="Desmarcar Leche Entera 2 Santa Clara (poner por comprar)"]');
+  // En "Artículos" la casilla va invertida: marcada = hay que comprarlo.
+  assert.equal(await page.$$eval(".casilla[aria-checked='true']", (c) => c.length), 0, "todo lo importado ya lo tengo: casillas sin marcar");
+  await page.click('[aria-label="Marcar Plátanos (poner en Comprar)"]');
+  await page.click('[aria-label="Marcar Leche Entera 2 Santa Clara (poner en Comprar)"]');
   await pausa(page);
   assert.equal(await page.textContent("[data-contador-pendientes]"), "2");
+  assert.equal(await page.$$eval(".casilla[aria-checked='true']", (c) => c.length), 2, "las 2 por comprar quedan con la casilla marcada");
+  assert.equal(await page.getAttribute('[aria-label="Desmarcar Plátanos (ya lo tengo)"]', "aria-checked"), "true");
 
   // 5. Campo rápido: búsqueda, alta con cantidad, existente pendiente, existente marcado.
   await page.fill("[data-campo-rapido]", "lech");
@@ -345,7 +349,7 @@ async function flujo(browser, ancho, modo) {
   assert.ok(!(await nombresVisibles(page)).includes("Mangos"), "Mangos sale de Por comprar");
   assert.match(await page.textContent(".recien-marcados"), /Marcaste hace poco[\s\S]*Mangos/);
   await page.screenshot({ path: path.join(CAPTURAS, "recien-marcados-" + ancho + "-" + modo + ".png") });
-  await page.click('[aria-label="Regresar Mangos a Por comprar"]');
+  await page.click('[aria-label="Regresar Mangos a Comprar"]');
   await pausa(page);
   assert.ok((await nombresVisibles(page)).includes("Mangos"), "Regresar lo devuelve a Por comprar");
   assert.equal(await page.$(".recien-marcados"), null, "y sale de 'Marcaste hace poco'");
