@@ -376,6 +376,8 @@ async function flujo(browser, ancho, modo) {
     assert.equal(await page.$$eval(".fondo-modal", (f) => f.length), 1, "un clic normal abre UNA sola edición");
     await page.keyboard.press("Escape");
     await pausa(page, 300);
+    await page.evaluate(([l, id]) => window.__mockBD.escribirComoOtro({ ["listas/" + l + "/articulos/" + id + "/notas"]: null }), [listaId, idMangos]); // deja el dato como estaba
+    await pausa(page, 200);
     paso("toque perdido por repintado: abre la edición; clic normal no duplica");
   }
 
