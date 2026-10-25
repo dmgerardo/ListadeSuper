@@ -1245,6 +1245,37 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     campoRapido.focus(); // para seguir agregando sin volver a tocar el campo
   });
 
+  // Toque que se pierde (reportado en "Comprar": solo abría con doble clic). Si la lista se
+  // repinta entre que el dedo/ratón baja y sube (llega un cambio de Firebase), el navegador
+  // descarta el "click" porque el botón de abajo ya no es el mismo nodo. Aquí se recuerda a qué
+  // artículo se apuntó al bajar; si al subir se sigue sobre el mismo artículo y NO llegó el
+  // click, se abre la edición. Si el click llega (lo normal), esto no hace nada.
+  var clicsEditar = 0;
+  var apuntado = null;
+  contenedor.addEventListener("pointerdown", function (ev) {
+    var b = ev.target.closest && ev.target.closest("[data-editar]");
+    apuntado = b && !ev.target.closest("[data-ver-foto]") && ev.isPrimary !== false && (ev.pointerType !== "mouse" || ev.button === 0)
+      ? { id: b.dataset.editar, x: ev.clientX, y: ev.clientY, t: Date.now() }
+      : null;
+  });
+  contenedor.addEventListener("pointercancel", function () { apuntado = null; }); // era un scroll
+  contenedor.addEventListener("pointerup", function (ev) {
+    var a = apuntado;
+    apuntado = null;
+    if (!a || Date.now() - a.t > 700) return;
+    if (Math.abs(ev.clientX - a.x) > 10 || Math.abs(ev.clientY - a.y) > 10) return;
+    var vistos = clicsEditar;
+    setTimeout(function () {
+      if (clicsEditar !== vistos) return; // el click llegó y ya abrió la edición
+      var punto = document.elementFromPoint(ev.clientX, ev.clientY);
+      var b = punto && punto.closest("[data-editar]");
+      if (!b || b.dataset.editar !== a.id || !articulos[a.id]) return;
+      if (document.querySelector(".fondo-modal")) return;
+      clicsEditar++;
+      abrirFormularioArticulo(a.id);
+    }, 120);
+  });
+
   contenedor.addEventListener("click", function (ev) {
     var regresarBtn = ev.target.closest("[data-regresar]");
     if (regresarBtn) {
@@ -1287,6 +1318,7 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
     }
     var editarBtn = ev.target.closest("[data-editar]");
     if (editarBtn) {
+      clicsEditar++;
       abrirFormularioArticulo(editarBtn.dataset.editar);
       return;
     }

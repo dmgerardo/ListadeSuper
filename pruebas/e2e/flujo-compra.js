@@ -357,6 +357,28 @@ async function flujo(browser, ancho, modo) {
   assert.deepEqual(actMangos.slice(-2), ["marco", "desmarco"], "queda en el registro");
   await page.screenshot({ path: path.join(CAPTURAS, "por-comprar-" + ancho + "-" + modo + ".png") });
 
+  // Toque perdido: si llega un cambio (otro teléfono) entre que el ratón baja y sube sobre un
+  // renglón de "Comprar", el navegador descarta el click; la edición debe abrirse igual.
+  if (ancho >= 600) {
+    const idMangos = Object.entries(await leerBD(page, "listas/" + listaId + "/articulos")).find(([, a]) => a.nombre === "Mangos")[0];
+    const caja = await (await page.$('[data-editar="' + idMangos + '"]')).boundingBox();
+    await page.mouse.move(caja.x + 8, caja.y + 8);
+    await page.mouse.down();
+    await page.evaluate(([l, id]) => window.__mockBD.escribirComoOtro({ ["listas/" + l + "/articulos/" + id + "/notas"]: "cambio ajeno" }), [listaId, idMangos]);
+    await pausa(page, 150);
+    await page.mouse.up();
+    await pausa(page, 500);
+    assert.equal(await page.$$eval("[data-form-articulo]", (f) => f.length), 1, "el toque perdido por un repintado abre la edición");
+    await page.keyboard.press("Escape");
+    await pausa(page, 300);
+    await page.click('[data-editar="' + idMangos + '"]');
+    await pausa(page, 500);
+    assert.equal(await page.$$eval(".fondo-modal", (f) => f.length), 1, "un clic normal abre UNA sola edición");
+    await page.keyboard.press("Escape");
+    await pausa(page, 300);
+    paso("toque perdido por repintado: abre la edición; clic normal no duplica");
+  }
+
   // 9. Marcar todo (1 escritura) y Deshacer.
   const antesTodo = await page.evaluate(() => window.__mockBD.escrituras.length);
   await page.click("[data-accion=marcar-todo]");
