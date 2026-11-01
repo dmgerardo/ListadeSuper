@@ -419,3 +419,84 @@ test("importar: una nota bajo un encabezado conocido, o un título sin artículo
   assert.deepEqual(r.articulos.map((a) => a.nombre + "@" + a.categoria), ["Regalo@especiales"]);
   assert.deepEqual(r.ignorados, ["Mi título", "Explicación", "poner compras de única ocasión"]);
 });
+
+// ===== Comandos =====
+const catsDef = () => g("categoriasEfectivas(null)");
+const artsCmd = () => ({
+  a1: { nombre: "Leche", categoria: "refris", comprado: false, cantidad: 1, unidad: "l" },
+  a2: { nombre: "Tomate", categoria: "verduras", comprado: true, cantidad: 1, unidad: "kg" },
+  a3: { nombre: "Cebolla", categoria: "verduras", comprado: false },
+  a4: { nombre: "Aceite", categoria: "condimentos_aceites", comprado: true },
+  a5: { nombre: "Aceite", categoria: "abarrotes", comprado: true }
+});
+const planear = (texto, arts = artsCmd()) => { ctx.__t = texto; ctx.__a = arts; ctx.__c = catsDef(); return plano(g("planificarComandos(__t, __a, __c)")); };
+
+test("comandos: parsea, ignora comentarios/cercas y reporta los renglones malos", () => {
+  ctx.__c = catsDef();
+  ctx.__t = "```\n# menú\nLIMPIAR\n\ncomprar | leche | 2 | litros\nCREAR | Chayote | | | Verduras | para caldo\nCREAR | X | 1 | pieza\nCOMPRAR | Y | -1\nCOMPRAR | Y | 1 | rollos\nBAILAR | Y\nQUITAR | Z | Pasillo Inexistente\nCOMPRAR |\n```";
+  const r = plano(g("parsearComandos(__t, __c)"));
+  assert.deepEqual(r.map((c) => c.tipo || "error"), ["limpiar", "comprar", "crear", "error", "error", "error", "error", "error", "error"]);
+  assert.equal(r[1].unidad, "l");
+  assert.equal(r[1].cantidad, 2);
+  assert.equal(r[2].categoria, "verduras");
+  assert.equal(r[2].notas, "para caldo");
+  assert.match(r[3].error, /pasillo/); // CREAR sin pasillo
+  assert.match(r[4].error, /cantidad/);
+  assert.match(r[5].error, /unidad/);
+  assert.match(r[6].error, /desconocido/);
+  assert.match(r[7].error, /no existe en esta lista/);
+  assert.match(r[8].error, /nombre/);
+  assert.deepEqual(r.map((c) => c.linea).slice(0, 3), [3, 5, 6], "números de renglón del texto original");
+});
+
+test("comandos: LIMPIAR + COMPRAR deja solo lo pedido, con cantidad y unidad, y solo las diferencias", () => {
+  const p = planear("LIMPIAR\nCOMPRAR | leche | 2 | l\nCOMPRAR | CEBOLLA | 3\nCOMPRAR | tomate | 1,5 | kg");
+  assert.equal(p.errores, 0);
+  assert.equal(p.limpiados, 2); // Leche y Cebolla estaban pendientes
+  assert.equal(p.porComprar, 3);
+  // Leche: pendiente→limpiada→pendiente (sin cambio de estado), cantidad 1→2.
+  assert.deepEqual(p.cambios.a1, { cantidad: 2 });
+  assert.deepEqual(p.cambios.a3, { cantidad: 3 });
+  assert.deepEqual(p.cambios.a2, { comprado: false, cantidad: 1.5 });
+  assert.equal(p.cambios.a4, undefined);
+});
+
+test("comandos: CREAR entra marcado; con COMPRAR posterior queda por comprar en UN solo objeto", () => {
+  const p = planear("CREAR | Chayote | 4 | pieza | Verduras | caldo\nCOMPRAR | chayote | 5\nCREAR | Sal | 1 | kg | Abarrotes");
+  assert.equal(p.errores, 0);
+  assert.deepEqual(p.nuevos, [
+    { nombre: "Chayote", cantidad: 5, unidad: "pieza", categoria: "verduras", comprado: false, notas: "caldo" },
+    { nombre: "Sal", cantidad: 1, unidad: "kg", categoria: "abarrotes", comprado: true }
+  ]);
+  assert.equal(p.creados, 2);
+  assert.deepEqual(p.cambios, {});
+});
+
+test("comandos: errores de coincidencia (no existe + sugerencia, ambiguo, duplicado) y no abortan el resto", () => {
+  const p = planear("COMPRAR | tomates\nCOMPRAR | aceite\nCOMPRAR | Aceite | 1 | l | Abarrotes\nCREAR | Cebolla | 1 | pieza | Verduras\nCOMPRAR | Leche");
+  assert.deepEqual(p.lineas.map((l) => l.ok), [false, false, true, false, true]);
+  assert.match(p.lineas[0].mensaje, /¿quisiste decir «Tomate»\?/);
+  assert.match(p.lineas[1].mensaje, /varios pasillos/);
+  assert.match(p.lineas[3].mensaje, /ya existe/);
+  assert.equal(p.errores, 3);
+  assert.deepEqual(p.cambios.a5, { comprado: false, unidad: "l" }, "cantidad 1 ya era la implícita");
+  assert.deepEqual(p.cambios.a1, undefined, "Leche ya estaba pendiente con 1 l: sin cambios");
+});
+
+test("comandos: QUITAR y cambio de unidad ajusta la cantidad al paso", () => {
+  const p = planear("QUITAR | leche\nCOMPRAR | Cebolla | | g");
+  assert.deepEqual(p.cambios.a1, { comprado: true });
+  assert.deepEqual(p.cambios.a3, { cantidad: 100, unidad: "g" }, "1 pieza → 100 g (mínimo de la unidad)");
+});
+
+test("comandos: el prompt trae sintaxis, pasillos y el catálogo con sus datos básicos", () => {
+  ctx.__o = { nombreLista: "Súper", articulos: artsCmd(), categorias: catsDef(), orden: g("ordenCategoriasEfectivo(null, categoriasEfectivas(null))") };
+  const t = g("generarPromptComandos(__o)");
+  for (const s of ["COMPRAR | nombre | cantidad | unidad | pasillo", "CREAR | nombre", "LIMPIAR", "QUITAR | nombre", "PREGÚNTAME", "UN SOLO bloque de código", "Leche | Refris | l | 1 | POR COMPRAR", "Tomate | Verduras | kg | 1 | ya lo tengo", "Catálogo actual (5 artículos)"]) {
+    assert.ok(t.includes(s), "falta: " + s);
+  }
+  assert.ok(t.includes("pieza, kg, g, l, ml, paquete, caja, bolsa, lata, botella, docena"));
+  assert.ok(t.includes("Abarrotes, Botanas y semillas"), "pasillos de la lista, alfabéticos");
+  ctx.__o.articulos = {};
+  assert.ok(g("generarPromptComandos(__o)").includes("la lista está vacía"));
+});

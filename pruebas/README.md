@@ -37,5 +37,7 @@ la nube el CLI manda su llamada local para cargar las reglas por el proxy de sal
   (v13) el selector de apariencia; (v14) orden alfabético y el editor de unidades y precios
   (coma decimal, Enter al siguiente, foco estable mientras llegan cambios, inválido/vacío). Capturas en
   `pruebas/e2e/capturas/` (o `CAPTURAS=...`), ignoradas por git.
+- `comandos.js` (v27): la hoja "Comandos": prompt al portapapeles (se lee de vuelta), vista previa con errores,
+  ejecutar en UNA escritura con actividad, Deshacer y cancelar con confirmación.
 
 Nada de `pruebas/` se despliega (está en `hosting.ignore` de `firebase.json`).

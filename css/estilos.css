@@ -1145,3 +1145,22 @@ code { font-size: 0.9em; background: var(--color-segmento); padding: 0 4px; bord
 .miniatura-fila { flex: none; display: block; width: 44px; height: 44px; cursor: zoom-in; }
 .miniatura-fila img { display: block; width: 44px; height: 44px; object-fit: cover; border-radius: 10px; }
 @media (max-width: 374px) { .miniatura-fila, .miniatura-fila img { width: 32px; height: 32px; } }
+
+/* Consola de comandos (js/vista-comandos.js). 16 px en la caja: menos que eso hace zoom en iOS. */
+.area-comandos { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 16px; }
+.copia-temporal { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; }
+.sintaxis-comandos { margin: 8px 0 12px; font-size: 14px; color: var(--color-texto-suave); }
+.sintaxis-comandos summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.sintaxis-comandos pre {
+  margin: 4px 0 8px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  background: var(--color-fondo);
+  border-radius: 12px;
+  color: var(--color-texto);
+  font-size: 13px;
+}
+.lista-comandos { list-style: none; margin: 8px 0 0; padding: 0; max-height: 40vh; overflow-y: auto; }
+.lista-comandos li { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; }
+.lista-comandos li + li { box-shadow: inset 0 1px 0 var(--color-fondo); }
+.texto-comando { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; overflow-wrap: anywhere; }

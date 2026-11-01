@@ -191,6 +191,28 @@ test("editar otro campo de un artículo que marcó otra persona no choca con com
   assert.equal(valor.agregadoPor, "alice");
 });
 
+test("comandos: la escritura multi-ruta (cambios + artículo nuevo + actividad) y su Deshacer pasan las reglas", async () => {
+  const L = "listas/L1/";
+  const ahora = Date.now();
+  await assertSucceeds(update(ref(bd("bob")), {
+    [L + "articulos/a1/comprado"]: false, [L + "articulos/a1/compradoPor"]: null,
+    [L + "articulos/a1/cantidad"]: 1.5, [L + "articulos/a1/unidad"]: "kg",
+    [L + "articulos/n1"]: { nombre: "Chayote", cantidad: 5, unidad: "pieza", categoria: "verduras", comprado: false, agregadoPor: "bob", creado: ahora, notas: "para el caldo" },
+    [L + "actividad/e1"]: { uid: "bob", nombre: "Bob", accion: "desmarco", articuloId: "a1", articulo: "Pan", ts: ahora }
+  }));
+  const despues = await leerSinReglas(L + "articulos/a1");
+  assert.equal(despues.cantidad, 1.5);
+  assert.equal(despues.compradoPor, undefined);
+  // Deshacer: devuelve los campos (los que no existían antes, como null) y quita lo creado.
+  await assertSucceeds(update(ref(bd("bob")), {
+    [L + "articulos/a1/comprado"]: true, [L + "articulos/a1/compradoPor"]: "alice",
+    [L + "articulos/a1/cantidad"]: 1, [L + "articulos/a1/unidad"]: null,
+    [L + "articulos/n1"]: null,
+    [L + "actividad/e2"]: { uid: "bob", nombre: "Bob", accion: "marco", articuloId: "a1", articulo: "Pan", ts: ahora }
+  }));
+  assert.equal(await leerSinReglas(L + "articulos/n1"), null);
+});
+
 test("no se puede dejar un artículo sin nombre ni quitarle la categoría con un update", async () => {
   await assertFails(update(ref(bd("bob"), "listas/L1/articulos/a1"), { nombre: null }));
   await assertFails(update(ref(bd("bob"), "listas/L1/articulos/a1"), { categoria: null }));

@@ -91,6 +91,11 @@ en npm es `12.19.0`, ver §7).
   unidad + precio, notas.
 - **Favorito**: `articulos/{id}/favorito: true` (se quita con `null`, no `false`); estrella en cada
   renglón y filtro "Favoritos" en memoria (vale en las dos vistas). Se copia al duplicar.
+- **Comandos** (v27, `js/vista-comandos.js`): `LIMPIAR` / `COMPRAR` / `CREAR` / `QUITAR` con campos
+  separados por `|` (ver el comentario de `logica-articulos.js`). `planificarComandos` aplica los
+  renglones EN ORDEN sobre una copia y devuelve solo diferencias reales (`cambios` por id + `nuevos`),
+  así nunca hay rutas que se traslapen en la multi-ruta. Un renglón con error se omite y se informa.
+  Si cambias la sintaxis, cambia también `generarPromptComandos` (es lo que aprende Claude).
 - **Fotos de artículos** (v22, `js/fotos.js`): campo `articulos/{id}/fotoUrl` (https, ≤ 1000; regla
   en el generador). Tres formas: archivo, portapapeles (API + evento `paste` + campo de respaldo)
   y URL. Archivo/portapapeles se REDUCEN en el dispositivo (≤ 1280 px, JPEG .82) y se suben a
@@ -145,6 +150,7 @@ Ver `PROYECTO_INICIAL.md` §2 para el árbol completo. Resumen de lo ya creado (
 | `js/render-utils.js` | `esc`, `urlSegura`, `formatoMoneda`, `hoyLocalISO`, `abrirModal`, `confirmarCierreConCambios`, `mostrarToast` y la barra inferior flotante: `barraInferior`, `ranuraBarra`, `vaciarRanura`, `montarPestanas`, `montarAccionPrincipal`, `montarBotonAyuda`, `montarMenuCuenta` |
 | `js/catalogo-categorias.js` | Las 14 categorías/pasillos del usuario (confirmadas en Fase 2, orden de su nota de iPhone; "Especiales" es el cajón, no hay "Otros"), su ícono (`CATEGORIAS_ICONOS`), alias para importar y las 11 unidades |
 | `js/logica-articulos.js` | Lógica pura, probada en Node: `normalizarNombre`, `interpretarTextoRapido` ("2 kg tomate"), `ordenCategoriasEfectivo`, `agruparArticulos`, `totalesLista`, `parsearNotaImportada`, `separarRepetidos`, `buscarPorNombre`, `textoCantidad`, `pasoDeUnidad`, `siguienteCantidad`, `etiquetaUnidad` (contador −/+), `compararPorNombre` (orden alfabético), `cantidadParaUnidad`, `contarSinPrecio` (editor de precios), `copiarArticulos` (duplicar lista) |
+| `js/vista-comandos.js` | Hoja "Comandos" (Artículos): copiar prompt para Claude, pegar comandos, vista previa, ejecutar + Deshacer (la sintaxis y el prompt viven en `logica-articulos.js`) |
 | `js/fotos.js` | Fotos: reducir, subir a Storage, selector (archivo/portapapeles/URL) y vista ampliada |
 | `js/vista-articulos.js` | Pantalla de una lista (incluye la hoja "Pasillos" y el filtro Favoritos): vistas "Comprar"/"Artículos", campo rápido (busca + agrega), formulario agregar/editar/eliminar, marcar todo, importar nota, totales, Deshacer |
 | `js/vista-listas.js` | Pantalla "Mis listas": crear, abrir, renombrar, eliminar (dueño); avisos según rol |

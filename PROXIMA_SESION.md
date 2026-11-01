@@ -20,6 +20,17 @@
 
 ## Qué se hizo, por versión (más reciente primero)
 
+- **v27 — consola "Comandos"** (`js/vista-comandos.js`; lógica en `logica-articulos.js`:
+  `parsearComandos`, `planificarComandos`, `generarPromptComandos`). Botón "Comandos" en Artículos:
+  (1) "Copiar prompt para Claude" deja en el portapapeles la sintaxis + pasillos + catálogo de la lista
+  (nombre | pasillo | unidad | cantidad | estado) para una sesión de Claude que ya tiene el menú; Claude
+  puede preguntar dudas y debe responder con UN bloque de comandos; (2) caja para pegarlos, vista previa por
+  renglón y Ejecutar (UNA multi-ruta con actividad; Deshacer). Comandos: `LIMPIAR`, `COMPRAR | nombre |
+  cantidad | unidad | pasillo`, `CREAR | nombre | cantidad | unidad | pasillo | notas` (entra marcado),
+  `QUITAR | nombre | pasillo`. Se aplican en orden; nombre exacto sin acentos/mayúsculas; ambiguo = error;
+  los renglones con error se omiten (el botón lo dice). Probado: lógica (38), reglas (39, nueva prueba de
+  la escritura multi-ruta), `pruebas/e2e/comandos.js` (portapapeles real, vista previa, ejecutar, Deshacer).
+  **NO probado:** el prompt con una sesión real de Claude (calidad de las coincidencias), el portapapeles en iPhone.
 - **v22 (ajustes) —** importar crea pasillos nuevos a partir de los encabezados desconocidos; la miniatura va antes del precio (es un `<span>` dentro del botón de editar, no un botón).
 - **v22 — fotos de artículos** (`js/fotos.js`, `storage.rules`). Storage ya está activo y sus
   reglas se publicaron desde el workflow (log del intento 2 de la corrida 21: "released rules

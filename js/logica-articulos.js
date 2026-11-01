@@ -458,3 +458,263 @@ function copiarArticulos(articulos, opciones) {
   });
   return resultado;
 }
+
+// ===== Comandos (consola "Comandos": captura automática de lo que hay que comprar) =====
+//
+// Un comando por renglón, campos separados con | (barra vertical). Líneas vacías y las que
+// empiezan con # se ignoran (también las cercas ``` de un bloque de código pegado).
+//   LIMPIAR                                              → todo lo pendiente pasa a "ya lo tengo"
+//   COMPRAR | nombre | cantidad | unidad | pasillo       → poner por comprar (cantidad, unidad y pasillo opcionales)
+//   CREAR   | nombre | cantidad | unidad | pasillo | notas → artículo nuevo (pasillo obligatorio; entra marcado)
+//   QUITAR  | nombre | pasillo                           → poner "ya lo tengo" (pasillo opcional)
+// Los comandos se aplican EN ORDEN sobre una copia de la lista; el resultado es un solo
+// conjunto de cambios (planificarComandos). Aquí no hay DOM ni Firebase.
+
+var COMANDOS_NOMBRES = ["LIMPIAR", "COMPRAR", "CREAR", "QUITAR"];
+var LARGO_MAX_NOTAS = 200; // el mismo límite que valida database.rules.json
+
+// Campo "cantidad" de un comando: vacío → null (omitido); inválido → { error }.
+function _cantidadDeComando(texto) {
+  if (!texto) return { valor: null };
+  var n = _numeroDesdeTexto(String(texto).trim());
+  if (!(n > 0) || n > 9999) return { error: "la cantidad «" + texto + "» no es válida (mayor que 0 y hasta 9999)" };
+  return { valor: Math.round(n * 100) / 100 };
+}
+
+// Campo "unidad": vacío → null; desconocida → { error }.
+function _unidadDeComando(texto) {
+  if (!texto) return { valor: null };
+  var u = _ALIAS_UNIDADES[normalizarNombre(texto).replace(/\.$/, "")];
+  return u ? { valor: u } : { error: "la unidad «" + texto + "» no existe (usa: " + UNIDADES_DEFECTO.join(", ") + ")" };
+}
+
+// parsearComandos(texto, categorias) → [{ linea, texto, tipo, ... } | { linea, texto, error }].
+// `categorias`: los pasillos de la lista ({ id: nombre }); el pasillo se acepta por nombre.
+function parsearComandos(texto, categorias) {
+  var cats = categorias || categoriasEfectivas(null);
+  var resultado = [];
+  String(texto || "").split(/\r\n|\r|\n/).forEach(function (crudo, i) {
+    var linea = i + 1;
+    var t = crudo.trim();
+    if (!t || t.charAt(0) === "#" || t.indexOf("```") === 0) return;
+    var campos = t.split("|").map(function (c) { return c.trim(); });
+    var tipo = normalizarNombre(campos[0]).toUpperCase();
+    var falla = function (mensaje) { resultado.push({ linea: linea, texto: t, error: mensaje }); };
+    if (COMANDOS_NOMBRES.indexOf(tipo) < 0) {
+      return falla("comando desconocido «" + campos[0] + "» (usa: " + COMANDOS_NOMBRES.join(", ") + ")");
+    }
+    if (tipo === "LIMPIAR") {
+      if (campos.length > 1 && campos.slice(1).some(Boolean)) return falla("LIMPIAR no lleva campos");
+      return resultado.push({ linea: linea, texto: t, tipo: "limpiar" });
+    }
+    var nombre = campos[1] || "";
+    if (!nombre) return falla(tipo + " necesita el nombre del artículo");
+    if (nombre.length > LARGO_MAX_NOMBRE) return falla("el nombre es demasiado largo (máximo " + LARGO_MAX_NOMBRE + ")");
+    var comando = { linea: linea, texto: t, tipo: tipo.toLowerCase(), nombre: nombre };
+    var pasilloTexto;
+    if (tipo === "QUITAR") {
+      if (campos.length > 3) return falla("QUITAR lleva: nombre | pasillo");
+      pasilloTexto = campos[2];
+    } else {
+      if (campos.length > (tipo === "CREAR" ? 6 : 5)) return falla(tipo + " lleva demasiados campos (¿un | dentro de un nombre?)");
+      var c = _cantidadDeComando(campos[2]);
+      if (c.error) return falla(c.error);
+      var u = _unidadDeComando(campos[3]);
+      if (u.error) return falla(u.error);
+      comando.cantidad = c.valor;
+      comando.unidad = u.valor;
+      pasilloTexto = campos[4];
+      if (tipo === "CREAR") {
+        if (!pasilloTexto) return falla("CREAR necesita el pasillo (4.º campo)");
+        if (campos[5]) {
+          if (campos[5].length > LARGO_MAX_NOTAS) return falla("las notas son demasiado largas (máximo " + LARGO_MAX_NOTAS + ")");
+          comando.notas = campos[5];
+        }
+      }
+    }
+    if (pasilloTexto) {
+      var idPasillo = categoriaDeEncabezado(pasilloTexto, cats);
+      if (!idPasillo) return falla("el pasillo «" + pasilloTexto + "» no existe en esta lista");
+      comando.categoria = idPasillo;
+    }
+    resultado.push(comando);
+  });
+  return resultado;
+}
+
+// Hasta 3 nombres parecidos (uno contiene al otro) para sugerir cuando no hay coincidencia exacta.
+function _parecidos(nombre, candidatos) {
+  var n = normalizarNombre(nombre);
+  return candidatos.filter(function (c) {
+    var m = normalizarNombre(c.nombre);
+    return m.indexOf(n) >= 0 || n.indexOf(m) >= 0;
+  }).slice(0, 3).map(function (c) { return c.nombre; });
+}
+
+// planificarComandos(texto, articulos, categorias) → {
+//   lineas: [{ linea, texto, ok, mensaje }]  (una por comando, en orden; ok=false con la causa),
+//   errores, limpiados, porComprar, creados, quitados, // conteos de los comandos que sí aplican
+//   cambios: { idExistente: { campo: valorNuevo } }     (solo diferencias reales; null = borrar),
+//   nuevos:  [{ nombre, cantidad, unidad, categoria, comprado, notas? }]
+// }
+// Cada comando se aplica sobre el estado que dejaron los anteriores. Un comando con error se
+// omite (y se informa); los demás siguen. Coincidencia de nombre: exacta sin acentos ni
+// mayúsculas, dentro del pasillo si se indicó; si el nombre está en varios pasillos y no se
+// indicó cuál, es un error (no se adivina).
+function planificarComandos(texto, articulos, categorias) {
+  var cats = categorias || categoriasEfectivas(null);
+  var comandos = parsearComandos(texto, cats);
+  var lista = []; // estado simulado: existentes y creados en este lote
+  Object.keys(articulos || {}).sort().forEach(function (id) {
+    var a = articulos[id];
+    if (!a || typeof a !== "object" || !a.nombre) return;
+    lista.push({
+      id: id, nombre: a.nombre, categoria: categoriaValida(a.categoria, cats),
+      comprado: !!a.comprado,
+      cantidad: typeof a.cantidad === "number" ? a.cantidad : 1,
+      unidad: a.unidad || "pieza", original: a
+    });
+  });
+  var nuevos = [];
+  var salida = { lineas: [], errores: 0, limpiados: 0, porComprar: 0, creados: 0, quitados: 0, cambios: {}, nuevos: nuevos };
+
+  function nombrePasillo(id) { return cats[id] || id; }
+  function buscar(c) {
+    var n = normalizarNombre(c.nombre);
+    return lista.filter(function (x) {
+      return normalizarNombre(x.nombre) === n && (!c.categoria || x.categoria === c.categoria);
+    });
+  }
+
+  comandos.forEach(function (c) {
+    var linea = { linea: c.linea, texto: c.texto, ok: true, mensaje: "" };
+    salida.lineas.push(linea);
+    var mal = function (mensaje) { linea.ok = false; linea.mensaje = mensaje; salida.errores++; };
+    if (c.error) return mal(c.error);
+
+    if (c.tipo === "limpiar") {
+      var n = 0;
+      lista.forEach(function (x) { if (!x.comprado) { x.comprado = true; n++; } });
+      salida.limpiados += n;
+      linea.mensaje = n === 1 ? "1 artículo pendiente pasa a «ya lo tengo»" : n + " artículos pendientes pasan a «ya lo tengo»";
+      return;
+    }
+
+    var coincidencias = buscar(c);
+    if (c.tipo === "crear") {
+      if (coincidencias.length) return mal("«" + c.nombre + "» ya existe en " + nombrePasillo(coincidencias[0].categoria) + " (usa COMPRAR)");
+      var unidad = c.unidad || "pieza";
+      var cantidad = c.cantidad !== null && c.cantidad !== undefined ? c.cantidad : cantidadParaUnidad(1, unidad);
+      var nuevo = { nombre: c.nombre, cantidad: cantidad, unidad: unidad, categoria: c.categoria, comprado: true };
+      if (c.notas) nuevo.notas = c.notas;
+      var sim = { id: null, nombre: c.nombre, categoria: c.categoria, comprado: true, cantidad: cantidad, unidad: unidad, nuevo: nuevo };
+      lista.push(sim);
+      nuevos.push(nuevo);
+      salida.creados++;
+      linea.mensaje = "se crea en " + nombrePasillo(c.categoria) + " (" + (textoCantidad(cantidad, unidad) || "1 pieza") + ")";
+      return;
+    }
+
+    // COMPRAR / QUITAR sobre un artículo existente (o creado antes en este lote).
+    if (!coincidencias.length) {
+      var sug = _parecidos(c.nombre, lista);
+      return mal("«" + c.nombre + "» no existe" + (c.categoria ? " en " + nombrePasillo(c.categoria) : "") +
+        (sug.length ? "; ¿quisiste decir " + sug.map(function (s) { return "«" + s + "»"; }).join(", ") + "?" : "") + " (usa CREAR)");
+    }
+    if (coincidencias.length > 1) {
+      return mal("«" + c.nombre + "» está en varios pasillos (" + coincidencias.map(function (x) { return nombrePasillo(x.categoria); }).join(", ") + "): indica cuál");
+    }
+    var x = coincidencias[0];
+    if (c.tipo === "quitar") {
+      x.comprado = true;
+      salida.quitados++;
+      linea.mensaje = x.nombre + " pasa a «ya lo tengo»";
+      return;
+    }
+    x.comprado = false;
+    if (c.unidad) x.unidad = c.unidad;
+    if (c.cantidad !== null && c.cantidad !== undefined) x.cantidad = c.cantidad;
+    else if (c.unidad) x.cantidad = cantidadParaUnidad(x.cantidad, c.unidad);
+    salida.porComprar++;
+    linea.mensaje = x.nombre + ": " + (textoCantidad(x.cantidad, x.unidad) || "1 pieza") + " por comprar";
+  });
+
+  // Los nuevos reflejan su estado final (un COMPRAR posterior los dejó por comprar, etc.).
+  lista.forEach(function (x) {
+    if (x.nuevo) {
+      x.nuevo.comprado = x.comprado;
+      x.nuevo.cantidad = x.cantidad;
+      x.nuevo.unidad = x.unidad;
+      return;
+    }
+    var o = x.original;
+    var d = {};
+    if (x.comprado !== !!o.comprado) d.comprado = x.comprado;
+    if (x.cantidad !== (typeof o.cantidad === "number" ? o.cantidad : 1)) d.cantidad = x.cantidad;
+    if (x.unidad !== (o.unidad || "pieza")) d.unidad = x.unidad;
+    if (Object.keys(d).length) salida.cambios[x.id] = d;
+  });
+  return salida;
+}
+
+// generarPromptComandos(opciones) → texto del prompt para una sesión de Claude.
+// opciones: { nombreLista, articulos, categorias (id→nombre), orden (ids de pasillos) }.
+function generarPromptComandos(opciones) {
+  var cats = opciones.categorias || categoriasEfectivas(null);
+  var orden = opciones.orden || ordenCategoriasEfectivo(null, cats);
+  var grupos = agruparArticulos(opciones.articulos || {}, orden, { categorias: cats });
+  var lineasCatalogo = [];
+  grupos.forEach(function (g) {
+    g.articulos.forEach(function (a) {
+      var cantidad = typeof a.cantidad === "number" ? a.cantidad : 1;
+      lineasCatalogo.push(a.nombre + " | " + g.nombre + " | " + (a.unidad || "pieza") + " | " + (Math.round(cantidad * 100) / 100) +
+        " | " + (a.comprado ? "ya lo tengo" : "POR COMPRAR"));
+    });
+  });
+  var nombresPasillos = orden.filter(function (id) { return cats[id]; }).map(function (id) { return cats[id]; });
+  return [
+    "Vas a convertir la lista de compras de esta sesión (el análisis de menús y el resumen de lo que hay que comprar) en una lista de COMANDOS para mi aplicación de compras «ListadeCompras», lista «" + (opciones.nombreLista || "") + "».",
+    "",
+    "## Sintaxis de los comandos",
+    "Un comando por renglón; los campos van separados por | (barra vertical). Líneas que empiezan con # son comentarios.",
+    "",
+    "LIMPIAR",
+    "    Pasa TODO lo que está pendiente de compra a «ya lo tengo» (para empezar de cero). Va al inicio.",
+    "COMPRAR | nombre | cantidad | unidad | pasillo",
+    "    Pone un artículo YA EXISTENTE como pendiente de compra. cantidad, unidad y pasillo son opcionales (si se omiten se conserva lo que ya tiene el artículo). El pasillo solo se necesita si el mismo nombre está en dos pasillos.",
+    "CREAR | nombre | cantidad | unidad | pasillo | notas",
+    "    Crea un artículo que no existe. El pasillo es OBLIGATORIO. cantidad, unidad y notas son opcionales. Entra como «ya lo tengo»: después va su COMPRAR.",
+    "QUITAR | nombre | pasillo",
+    "    Pasa un artículo a «ya lo tengo» (sacarlo de lo pendiente). El pasillo es opcional.",
+    "",
+    "Reglas de los campos:",
+    "- nombre: EXACTAMENTE como aparece en el catálogo de abajo (se ignoran mayúsculas y acentos, nada más). No inventes variantes ni pongas | dentro de un nombre.",
+    "- cantidad: número mayor que 0 (punto decimal; 1.5 está bien).",
+    "- unidad: una de " + UNIDADES_DEFECTO.join(", ") + ".",
+    "- pasillo: uno de los pasillos de la lista (abajo), con su nombre.",
+    "",
+    "Ejemplo:",
+    "LIMPIAR",
+    "COMPRAR | Leche | 2 | l",
+    "COMPRAR | Tomate | 1.5 | kg",
+    "CREAR | Chayote | 4 | pieza | " + (nombresPasillos[0] || "Frutas") + " | para el caldo del martes",
+    "COMPRAR | Chayote | 4 | pieza",
+    "",
+    "## Cómo debes trabajar",
+    "1. Toma cada cosa que hay que comprar del resumen de esta sesión y júntala: si un ingrediente aparece en varios días del menú, suma las cantidades.",
+    "2. Búscala en el catálogo por significado (singular/plural, acentos, marca, sinónimos). Si encuentras UN artículo claramente equivalente, usa COMPRAR con el nombre exacto del catálogo.",
+    "3. Si no existe nada equivalente, usa CREAR en el pasillo que corresponda y enseguida COMPRAR del mismo nombre con la cantidad necesaria.",
+    "4. Usa la unidad natural de compra (kg para verduras a granel, pieza para latas, etc.). Si la unidad del catálogo no sirve para la cantidad, indica la unidad y la cantidad en el COMPRAR.",
+    "5. Empieza con LIMPIAR salvo que yo te diga que conserve lo pendiente. Los artículos marcados POR COMPRAR en el catálogo son restos de la compra anterior: LIMPIAR los quita.",
+    "6. PREGÚNTAME antes de dar el resultado si tienes dudas: coincidencias dudosas (varios artículos posibles), pasillo incierto para un artículo nuevo, cantidades que no cuadran, cosas que probablemente ya tengo en casa o ajustes que convenga hacerle a la lista. Haz las preguntas juntas y numeradas.",
+    "7. No agregues nada que no esté en el resumen de compras. Si algo del resumen no se puede expresar con estos comandos, dímelo.",
+    "8. Cuando ya no haya dudas, responde con UN SOLO bloque de código con los comandos, sin texto dentro del bloque (puedes usar renglones # comentario). Yo lo pegaré tal cual en la aplicación, que revisa cada renglón antes de ejecutarlo.",
+    "",
+    "## Pasillos de la lista",
+    nombresPasillos.join(", "),
+    "",
+    "## Catálogo actual (" + lineasCatalogo.length + " artículos)",
+    "Formato: nombre | pasillo | unidad | cantidad | estado",
+    lineasCatalogo.length ? lineasCatalogo.join("\n") : "(la lista está vacía: todo lo que haga falta debe crearse con CREAR)"
+  ].join("\n");
+}

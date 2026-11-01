@@ -323,7 +323,9 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
             '<button type="button" class="btn-texto enlace-con-icono" data-accion="pasillos">' +
             icono("tags", 18) + "<span>Pasillos</span></button>" +
             '<button type="button" class="btn-texto enlace-con-icono" data-accion="importar">' +
-            icono("clipboard-list", 18) + "<span>Importar desde una nota</span></button>";
+            icono("clipboard-list", 18) + "<span>Importar desde una nota</span></button>" +
+            '<button type="button" class="btn-texto enlace-con-icono" data-accion="comandos">' +
+            icono("sparkles", 18) + "<span>Comandos</span></button>";
         }
       }
       zonaAcciones.innerHTML = acciones;
@@ -1327,6 +1329,19 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       if (accion.dataset.accion === "marcar-todo") marcarTodo();
       if (accion.dataset.accion === "importar") abrirImportar();
       if (accion.dataset.accion === "pasillos") abrirPasillos();
+      if (accion.dataset.accion === "comandos") {
+        abrirComandos({
+          listaId: listaId,
+          usuario: usuario,
+          nombreLista: function () { return info.nombre || ""; },
+          articulos: function () { return articulos; },
+          categorias: categoriasLista,
+          orden: function () { return ordenCategoriasEfectivo(info.ordenCategorias, categoriasLista()); },
+          coordinacion: function () { return coordinacion; },
+          refArticulos: refArticulos,
+          alEjecutar: function () { if (vista !== "pendientes") cambiarVista("pendientes"); }
+        });
+      }
       if (accion.dataset.accion === "solo-favoritos") {
         soloFavoritos = !soloFavoritos;
         pintar();
@@ -1379,6 +1394,9 @@ function montarVistaArticulos(contenedor, listaId, usuario) {
       "de todos tus artículos de corrido; usa <em>Solo sin precio</em> para ver lo que falta. Puedes tener abierta " +
       "la página de tu tienda en otra pestaña para copiar los precios.</p>" +
       "<p>Toca el nombre de un artículo para cambiar cantidad, unidad, pasillo, precio o notas, o para eliminarlo.</p>" +
+      "<p><em>Artículos</em> → <em>Comandos</em>: captura de golpe lo que hay que comprar. <em>Copiar prompt para Claude</em> " +
+      "copia las instrucciones y tu catálogo para que una sesión de Claude (con tu menú de la semana) te devuelva los comandos; " +
+      "los pegas, revisas la vista previa y ejecutas (con Deshacer). <code>LIMPIAR</code> empieza de cero.</p>" +
       "<p>En <em>Artículos</em> → <em>Pasillos</em> puedes cambiar el nombre de un pasillo, crear los tuyos y " +
       "eliminar los que estén vacíos.</p>"
   );
